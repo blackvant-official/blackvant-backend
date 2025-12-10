@@ -1,0 +1,161 @@
+// ------------------------------------------------------
+// BLACKVANT — Production-Ready Prisma Schema (v1.0)
+// ------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// ------------------------------------------------------
+// USER TABLE
+// ------------------------------------------------------
+model User {
+  id                String   @id @default(cuid())
+  clerkId           String   @unique
+  email             String   @unique
+  fullName          String?
+  role              String   @default("client") // client | admin | superadmin
+
+  investmentBalance Decimal  @default(0.0) @db.Decimal(18, 4)
+  profitBalance     Decimal  @default(0.0) @db.Decimal(18, 4)
+
+  referralCode      String?  @unique
+  referredById      String?
+  referredBy        User?    @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals         User[]   @relation("UserReferrals")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  deposits          Deposit[]
+  withdrawals       Withdrawal[]
+  profitPayouts     ProfitPayout[]
+  auditLogs         AuditLog[]
+
+  // Opposite relations for admin actions
+  depositsReviewed     Deposit[]            @relation("DepositReviewedBy")
+  withdrawalsReviewed  Withdrawal[]         @relation("WithdrawalReviewedBy")
+  profitDistributionsCreated ProfitDistribution[] @relation("ProfitCreatedBy")
+}
+
+
+
+// ------------------------------------------------------
+// DEPOSIT TABLE
+// ------------------------------------------------------
+model Deposit {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+
+  amount         Decimal  @db.Decimal(18, 4)
+  currency       String
+  method         String
+
+  txId           String?
+  proofUrl       String?
+
+  status         String   @default("pending") // pending | approved | rejected
+  statusReason   String?
+
+  reviewedById   String?
+  reviewedBy     User?    @relation("DepositReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  approvedAt     DateTime?
+}
+
+// ------------------------------------------------------
+// WITHDRAWAL TABLE
+// ------------------------------------------------------
+model Withdrawal {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+
+  amount         Decimal  @db.Decimal(18, 4)
+  currency       String
+  source         String   // profit
+
+  method         String
+  targetAddress  String
+
+  status         String   @default("pending")
+  statusReason   String?
+
+  reviewedById   String?
+  reviewedBy     User?    @relation("WithdrawalReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  approvedAt     DateTime?
+}
+
+// ------------------------------------------------------
+// PROFIT DISTRIBUTION (Daily)
+// ------------------------------------------------------
+model ProfitDistribution {
+  id                   String   @id @default(cuid())
+  refCode              String   @unique
+
+  declaredDate         DateTime
+  declaredProfit       Decimal  @db.Decimal(18, 4)
+  distributionPercent  Decimal  @db.Decimal(6, 4)
+
+  investmentPool       Decimal  @db.Decimal(18, 4)
+  totalDistributed     Decimal  @db.Decimal(18, 4)
+  recipientsCount      Int
+
+  status               String   @default("distributed") // only distributed supported
+  createdById          String
+  createdBy            User     @relation("ProfitCreatedBy", fields: [createdById], references: [id])
+
+  createdAt            DateTime @default(now())
+  lockedAt             DateTime?
+
+  payouts              ProfitPayout[]
+}
+
+// ------------------------------------------------------
+// PROFIT PAYOUT (Each User in Distribution)
+// ------------------------------------------------------
+model ProfitPayout {
+  id                 String   @id @default(cuid())
+
+  distributionId     String
+  distribution       ProfitDistribution @relation(fields: [distributionId], references: [id])
+
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+
+  investmentSnapshot Decimal  @db.Decimal(18, 4)
+  shareAmount        Decimal  @db.Decimal(18, 4)
+
+  createdAt          DateTime @default(now())
+}
+
+// ------------------------------------------------------
+// AUDIT LOG
+// ------------------------------------------------------
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+
+  action      String
+  entityType  String
+  entityId    String
+  meta        Json?
+
+  ip          String?
+  userAgent   String?
+
+  createdAt   DateTime @default(now())
+}
