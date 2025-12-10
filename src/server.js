@@ -25,8 +25,14 @@ import profitExportRoutes from "./routes/admin/profit/profit.export.routes.js";
 
 
 // Basic health route
-app.get("/", (req, res) => {
+app.get("/api/v1", (req, res) => {
   res.json({ message: "BlackVant Backend Running ✅" });
+});
+
+// Start server
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 BlackVant backend is running on http://localhost:${PORT}`);
 });
 
 // Register routes
@@ -44,8 +50,3 @@ app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
 
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 BlackVant backend is running on http://localhost:${PORT}`);
-});
