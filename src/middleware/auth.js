@@ -2,61 +2,44 @@ import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 import prisma from "../utils/prisma.js";
 
-// JWKS client for verifying Clerk JWT signature
 const client = jwksClient({
   jwksUri: process.env.CLERK_JWKS_URL,
 });
 
-// Retrieve signing key
 function getKey(header, callback) {
   client.getSigningKey(header.kid, function (err, key) {
     if (err) return callback(err);
-    const signingKey = key.getPublicKey();
-    callback(null, signingKey);
+    callback(null, key.getPublicKey());
   });
 }
 
-// Middleware: require authentication
 export const requireAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
-
-    if (!token) {
-      return res.status(401).json({ error: "Missing authorization token" });
-    }
+    if (!token) return res.status(401).json({ error: "Missing token" });
 
     jwt.verify(
       token,
       getKey,
       {
         algorithms: ["RS256"],
-        issuer: process.env.CLERK_ISSUER,  // ✔ Only issuer required
+        issuer: process.env.CLERK_ISSUER,
+        ignoreExpiration: false,
       },
       async (err, decoded) => {
         if (err) {
-          console.error("JWT verification failed:", err);
+          console.error("JWT FAIL:", err);
           return res.status(401).json({ error: "Invalid or expired token" });
         }
 
         const clerkId = decoded.sub;
         const email = decoded.email;
 
-        if (!clerkId) {
-          return res.status(401).json({ error: "Invalid Clerk token structure" });
-        }
-
-        // Find or create local DB user
-        let user = await prisma.user.findUnique({
-          where: { clerkId },
-        });
+        let user = await prisma.user.findUnique({ where: { clerkId } });
 
         if (!user) {
           user = await prisma.user.create({
-            data: {
-              clerkId,
-              email,
-              role: "client",
-            },
+            data: { clerkId, email, role: "client" },
           });
         }
 
@@ -66,19 +49,13 @@ export const requireAuth = async (req, res, next) => {
     );
   } catch (error) {
     console.error("AUTH ERROR:", error);
-    return res.status(500).json({ error: "Authentication failed" });
+    res.status(500).json({ error: "Authentication failed" });
   }
 };
 
-// Admin middleware
 export const requireAdmin = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  if (req.user.role === "admin" || req.user.role === "superadmin") {
+  if (req.user?.role === "admin" || req.user?.role === "superadmin") {
     return next();
   }
-
   return res.status(403).json({ error: "Admin access required" });
 };
