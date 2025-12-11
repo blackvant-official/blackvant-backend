@@ -16,15 +16,13 @@ function getKey(header, callback) {
   });
 }
 
-// ===============================
-// 🔐 AUTH MIDDLEWARE
-// ===============================
+// AUTH MIDDLEWARE
 export const requireAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {
-      return res.status(401).json({ error: "Missing authorization token" });
+      return res.status(401).json({ error: "Missing token" });
     }
 
     jwt.verify(
@@ -32,7 +30,9 @@ export const requireAuth = async (req, res, next) => {
       getKey,
       {
         algorithms: ["RS256"],
-        issuer: process.env.CLERK_ISSUER, // MUST match Clerk
+        issuer: process.env.CLERK_ISSUER,
+        ignoreExpiration: false,
+        // ❗ NO AUDIENCE CHECK
       },
       async (err, decoded) => {
         if (err) {
@@ -40,19 +40,18 @@ export const requireAuth = async (req, res, next) => {
           return res.status(401).json({ error: "Invalid or expired token" });
         }
 
-        const clerkId = decoded.sub;   // Clerk user ID
-        const email = decoded.email;   // Email inside token
+        const clerkId = decoded.sub;
+        const email = decoded.email;
 
         if (!clerkId) {
-          return res.status(401).json({ error: "Invalid Clerk token structure" });
+          return res.status(401).json({ error: "Invalid Clerk token" });
         }
 
-        // Check if user exists
+        // Find or create user in DB
         let user = await prisma.user.findUnique({
           where: { clerkId },
         });
 
-        // If user not found → create in DB
         if (!user) {
           user = await prisma.user.create({
             data: {
@@ -67,19 +66,15 @@ export const requireAuth = async (req, res, next) => {
         next();
       }
     );
-  } catch (error) {
-    console.error("AUTH ERROR:", error);
+  } catch (err) {
+    console.error("AUTH ERROR:", err);
     return res.status(500).json({ error: "Authentication failed" });
   }
 };
 
-// ===============================
-// 🔐 ADMIN CHECK
-// ===============================
+// ADMIN CHECK
 export const requireAdmin = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
   if (req.user.role === "admin" || req.user.role === "superadmin") {
     return next();
