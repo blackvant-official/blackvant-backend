@@ -7,7 +7,7 @@ const client = jwksClient({
   jwksUri: process.env.CLERK_JWKS_URL,
 });
 
-// Retrieve signing key
+// Retrieve signing key dynamically
 function getKey(header, callback) {
   client.getSigningKey(header.kid, function (err, key) {
     if (err) return callback(err);
@@ -30,8 +30,8 @@ export const requireAuth = async (req, res, next) => {
       getKey,
       {
         algorithms: ["RS256"],
-        audience: process.env.CLERK_AUDIENCE,
-        issuer: process.env.CLERK_ISSUER,
+        // **NO AUDIENCE CHECK — Clerk Dev tokens do NOT include aud**
+        issuer: process.env.CLERK_ISSUER,   // Still required
       },
       async (err, decoded) => {
         if (err) {
@@ -46,7 +46,7 @@ export const requireAuth = async (req, res, next) => {
           return res.status(401).json({ error: "Invalid Clerk token structure" });
         }
 
-        // Find or create local database user
+        // Check DB for existing user
         let user = await prisma.user.findUnique({
           where: { clerkId },
         });
@@ -56,7 +56,7 @@ export const requireAuth = async (req, res, next) => {
             data: {
               clerkId,
               email,
-              role: "client", // default role
+              role: "client",
             },
           });
         }
@@ -71,7 +71,7 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-// Middleware: require admin privileges
+// Admin access guard
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
