@@ -16,9 +16,7 @@ function getKey(header, callback) {
   });
 }
 
-// ===============================
-// 🔐 AUTH MIDDLEWARE
-// ===============================
+// Middleware: require authentication
 export const requireAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -32,7 +30,8 @@ export const requireAuth = async (req, res, next) => {
       getKey,
       {
         algorithms: ["RS256"],
-        issuer: process.env.CLERK_ISSUER, // MUST match Clerk
+        // **NO AUDIENCE CHECK — Clerk Dev tokens do NOT include aud**
+        issuer: process.env.CLERK_ISSUER,   // Still required
       },
       async (err, decoded) => {
         if (err) {
@@ -40,19 +39,18 @@ export const requireAuth = async (req, res, next) => {
           return res.status(401).json({ error: "Invalid or expired token" });
         }
 
-        const clerkId = decoded.sub;   // Clerk user ID
-        const email = decoded.email;   // Email inside token
+        const clerkId = decoded.sub;
+        const email = decoded.email;
 
         if (!clerkId) {
           return res.status(401).json({ error: "Invalid Clerk token structure" });
         }
 
-        // Check if user exists
+        // Check DB for existing user
         let user = await prisma.user.findUnique({
           where: { clerkId },
         });
 
-        // If user not found → create in DB
         if (!user) {
           user = await prisma.user.create({
             data: {
@@ -73,9 +71,7 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-// ===============================
-// 🔐 ADMIN CHECK
-// ===============================
+// Admin access guard
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
