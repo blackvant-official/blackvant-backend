@@ -30,8 +30,7 @@ export const requireAuth = async (req, res, next) => {
       getKey,
       {
         algorithms: ["RS256"],
-        issuer: process.env.CLERK_ISSUER,   // ONLY ISSUER CHECK
-        // NO AUDIENCE CHECK (Clerk dev tokens don't have audience)
+        issuer: process.env.CLERK_ISSUER,  // ✔ Only issuer required
       },
       async (err, decoded) => {
         if (err) {
@@ -46,7 +45,7 @@ export const requireAuth = async (req, res, next) => {
           return res.status(401).json({ error: "Invalid Clerk token structure" });
         }
 
-        // Find or create local database user
+        // Find or create local DB user
         let user = await prisma.user.findUnique({
           where: { clerkId },
         });
@@ -71,7 +70,7 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-// Middleware: require admin privileges
+// Admin middleware
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
