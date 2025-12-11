@@ -6,14 +6,23 @@ dotenv.config();
 
 const app = express();
 
-// ---------- CORS FIX (must be at top) ----------
+// =================================================
+//  FIXED CORS (ONLY ONE) — MUST BE AT VERY TOP!!!
+// =================================================
 app.use(cors({
-  origin: ["https://blackvant.com", "http://localhost:3000", "http://localhost:4000"],
+  origin: [
+    "https://blackvant.com",
+    "http://localhost:3000",
+    "http://localhost:4000",
+  ],
   credentials: true,
 }));
+
 app.use(express.json());
 
-// ---------- ROUTES ----------
+// =================================================
+//                  ROUTES
+// =================================================
 import userRoutes from "./routes/user.routes.js";
 import depositRoutes from "./routes/deposit.routes.js";
 import withdrawalRoutes from "./routes/withdrawal.routes.js";
@@ -27,12 +36,16 @@ import profitDistributeRoutes from "./routes/admin/profit/profit.distribute.rout
 import profitHistoryRoutes from "./routes/admin/profit/profit.history.routes.js";
 import profitExportRoutes from "./routes/admin/profit/profit.export.routes.js";
 
-// ---------- HEALTH CHECK ----------
+// =================================================
+//                 HEALTH CHECK
+// =================================================
 app.get("/api/v1", (req, res) => {
   res.json({ message: "BlackVant Backend Running ✅" });
 });
 
-// ---------- REGISTER ROUTES ----------
+// =================================================
+//              REGISTER ROUTES
+// =================================================
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
 app.use("/api/v1", withdrawalRoutes);
@@ -46,7 +59,9 @@ app.use("/api/v1/admin", profitDistributeRoutes);
 app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
-// ---------- START SERVER ----------
+// =================================================
+//                START SERVER
+// =================================================
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 BlackVant backend running on port ${PORT}`);
