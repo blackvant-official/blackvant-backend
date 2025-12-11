@@ -2,23 +2,18 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 
-// Load env
 dotenv.config();
 
 const app = express();
+
+// ---------- CORS FIX (must be at top) ----------
+app.use(cors({
+  origin: ["https://blackvant.com", "http://localhost:3000", "http://localhost:4000"],
+  credentials: true,
+}));
 app.use(express.json());
 
-// ✅ Correct CORS — must be BEFORE routes
-app.use(
-  cors({
-    origin: ["https://blackvant.com", "http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Authorization", "Content-Type"],
-    credentials: true,
-  })
-);
-
-// ===== ROUTES IMPORT =====
+// ---------- ROUTES ----------
 import userRoutes from "./routes/user.routes.js";
 import depositRoutes from "./routes/deposit.routes.js";
 import withdrawalRoutes from "./routes/withdrawal.routes.js";
@@ -32,12 +27,12 @@ import profitDistributeRoutes from "./routes/admin/profit/profit.distribute.rout
 import profitHistoryRoutes from "./routes/admin/profit/profit.history.routes.js";
 import profitExportRoutes from "./routes/admin/profit/profit.export.routes.js";
 
-// ===== HEALTH CHECK =====
+// ---------- HEALTH CHECK ----------
 app.get("/api/v1", (req, res) => {
   res.json({ message: "BlackVant Backend Running ✅" });
 });
 
-// ===== ROUTES REGISTER =====
+// ---------- REGISTER ROUTES ----------
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
 app.use("/api/v1", withdrawalRoutes);
@@ -51,7 +46,7 @@ app.use("/api/v1/admin", profitDistributeRoutes);
 app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
-// ===== START SERVER =====
+// ---------- START SERVER ----------
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 BlackVant backend running on port ${PORT}`);
