@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 
+
+
 // Load environment variables
 dotenv.config();
 
@@ -50,3 +52,7 @@ app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
 
+app.use(cors({
+  origin: ["https://blackvant.com", "http://localhost:4000"],
+  credentials: true
+}));
