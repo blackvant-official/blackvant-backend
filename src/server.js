@@ -4,6 +4,8 @@ import cors from "cors";
 
 dotenv.config();
 
+console.log("### ACTIVE SERVER FILE: CORS LOADED ###");
+
 const app = express();
 
 /* -------------------------------
