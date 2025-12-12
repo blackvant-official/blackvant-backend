@@ -4,33 +4,46 @@ import cors from "cors";
 
 dotenv.config();
 
-console.log("### ACTIVE SERVER FILE: CORS LOADED ###");
-
 const app = express();
 
-/* -------------------------------
-   GLOBAL CORS (must be first)
---------------------------------*/
+// ---------------------------------------
+// 1️⃣ MANUAL CORS OVERRIDE (NEVER FAILS)
+// ---------------------------------------
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://blackvant.com");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// ---------------------------------------
+// 2️⃣ CORS LIBRARY (SECONDARY SUPPORT)
+// ---------------------------------------
 app.use(
   cors({
-    origin: ["https://blackvant.com", "http://localhost:3000"],
+    origin: "https://blackvant.com",
     credentials: true,
   })
 );
 
 app.use(express.json());
 
-/* -------------------------------
-   HEALTH CHECK
---------------------------------*/
+// ---------------------------------------
+// 3️⃣ HEALTH CHECK
+// ---------------------------------------
 app.get("/api/v1", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "https://blackvant.com");
   res.json({ message: "BlackVant Backend Running ✅" });
 });
 
-/* -------------------------------
-   ROUTES
---------------------------------*/
+// ---------------------------------------
+// 4️⃣ ROUTES
+// ---------------------------------------
 import userRoutes from "./routes/user.routes.js";
 import depositRoutes from "./routes/deposit.routes.js";
 import withdrawalRoutes from "./routes/withdrawal.routes.js";
@@ -44,9 +57,7 @@ import profitDistributeRoutes from "./routes/admin/profit/profit.distribute.rout
 import profitHistoryRoutes from "./routes/admin/profit/profit.history.routes.js";
 import profitExportRoutes from "./routes/admin/profit/profit.export.routes.js";
 
-/* -------------------------------
-   REGISTER ROUTES
---------------------------------*/
+// register
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
 app.use("/api/v1", withdrawalRoutes);
@@ -60,10 +71,10 @@ app.use("/api/v1/admin", profitDistributeRoutes);
 app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
-/* -------------------------------
-   START SERVER
---------------------------------*/
+// ---------------------------------------
+// 5️⃣ START SERVER
+// ---------------------------------------
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () =>
-  console.log(`🚀 BlackVant backend running on port ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`🔥 CORS OVERRIDE ACTIVE — Backend running on ${PORT}`);
+});
