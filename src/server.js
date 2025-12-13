@@ -7,33 +7,38 @@ dotenv.config();
 const app = express();
 
 // ---------------------------------------------
-// 1️⃣ CORS (SINGLE, CORRECT CONFIG — FINAL)
+// 1️⃣ FINAL CORS CONFIG (NODE 22 SAFE)
 // ---------------------------------------------
 const allowedOrigins = [
   "https://blackvant.com",
   "https://www.blackvant.com",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // allow curl / server-to-server
-      if (!origin) return callback(null, true);
+const corsMiddleware = cors({
+  origin: function (origin, callback) {
+    // allow curl / server-to-server
+    if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+});
 
-// handle preflight properly
-app.options("*", cors());
+app.use(corsMiddleware);
+
+// ✅ FIX: use middleware, NOT app.options("*")
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return corsMiddleware(req, res, () => res.sendStatus(204));
+  }
+  next();
+});
 
 // ---------------------------------------------
 // 2️⃣ JSON PARSER
