@@ -7,58 +7,48 @@ dotenv.config();
 const app = express();
 
 // ---------------------------------------------
-// 1️⃣ MANUAL CORS OVERRIDE (ALWAYS WORKS)
+// 1️⃣ CORS (SINGLE, CORRECT CONFIG — FINAL)
 // ---------------------------------------------
 const allowedOrigins = [
   "https://blackvant.com",
-  "https://www.blackvant.com"
+  "https://www.blackvant.com",
 ];
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
-// ---------------------------------------------
-// 2️⃣ OPTIONAL SECONDARY CORS LIBRARY
-// ---------------------------------------------
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      // allow curl / server-to-server
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// handle preflight properly
+app.options("*", cors());
+
 // ---------------------------------------------
-// 3️⃣ JSON PARSER
+// 2️⃣ JSON PARSER
 // ---------------------------------------------
 app.use(express.json());
 
 // ---------------------------------------------
-// 4️⃣ HEALTH CHECK
+// 3️⃣ HEALTH CHECK
 // ---------------------------------------------
 app.get("/api/v1", (req, res) => {
   res.json({ message: "BlackVant Backend Running ✅" });
 });
 
 // ---------------------------------------------
-// 5️⃣ ROUTES
+// 4️⃣ ROUTES
 // ---------------------------------------------
 import userRoutes from "./routes/user.routes.js";
 import depositRoutes from "./routes/deposit.routes.js";
@@ -74,7 +64,7 @@ import profitHistoryRoutes from "./routes/admin/profit/profit.history.routes.js"
 import profitExportRoutes from "./routes/admin/profit/profit.export.routes.js";
 
 // ---------------------------------------------
-// 6️⃣ REGISTER ROUTES
+// 5️⃣ REGISTER ROUTES
 // ---------------------------------------------
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
@@ -90,9 +80,9 @@ app.use("/api/v1/admin", profitHistoryRoutes);
 app.use("/api/v1/admin", profitExportRoutes);
 
 // ---------------------------------------------
-// 7️⃣ START SERVER
+// 6️⃣ START SERVER
 // ---------------------------------------------
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`🔥 CORS OVERRIDE ACTIVE — Backend running on ${PORT}`);
+  console.log(`🚀 Backend running with FINAL CORS on port ${PORT}`);
 });
