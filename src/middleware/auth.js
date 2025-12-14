@@ -1,61 +1,43 @@
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
-import prisma from "../utils/prisma.js";
 
 const client = jwksClient({
-  jwksUri: process.env.CLERK_JWKS_URL,
+  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
 });
 
 function getKey(header, callback) {
   client.getSigningKey(header.kid, function (err, key) {
     if (err) return callback(err);
-    callback(null, key.getPublicKey());
+    const signingKey = key.getPublicKey();
+    callback(null, signingKey);
   });
 }
 
-export const requireAuth = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Missing token" });
+export default function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
 
-    jwt.verify(
-      token,
-      getKey,
-      {
-        algorithms: ["RS256"],
-        issuer: process.env.CLERK_ISSUER,
-        ignoreExpiration: false,
-      },
-      async (err, decoded) => {
-        if (err) {
-          console.error("JWT FAIL:", err);
-          return res.status(401).json({ error: "Invalid or expired token" });
-        }
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing token" });
+  }
 
-        const clerkId = decoded.sub;
-        const email = decoded.email;
+  const token = authHeader.split(" ")[1];
 
-        let user = await prisma.user.findUnique({ where: { clerkId } });
-
-        if (!user) {
-          user = await prisma.user.create({
-            data: { clerkId, email, role: "client" },
-          });
-        }
-
-        req.user = user;
-        next();
+  jwt.verify(
+    token,
+    getKey,
+    {
+      audience: process.env.CLERK_AUDIENCE,
+      issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
+      algorithms: ["RS256"],
+    },
+    (err, decoded) => {
+      if (err) {
+        console.error("JWT verification failed:", err.message);
+        return res.status(401).json({ error: "Invalid token" });
       }
-    );
-  } catch (error) {
-    console.error("AUTH ERROR:", error);
-    res.status(500).json({ error: "Authentication failed" });
-  }
-};
 
-export const requireAdmin = (req, res, next) => {
-  if (req.user?.role === "admin" || req.user?.role === "superadmin") {
-    return next();
-  }
-  return res.status(403).json({ error: "Admin access required" });
-};
+      req.user = decoded;
+      next();
+    }
+  );
+}
