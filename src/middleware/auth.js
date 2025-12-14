@@ -13,7 +13,10 @@ function getKey(header, callback) {
   });
 }
 
-export default function authMiddleware(req, res, next) {
+/**
+ * Core JWT verification logic
+ */
+function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -41,3 +44,15 @@ export default function authMiddleware(req, res, next) {
     }
   );
 }
+
+/**
+ * ✅ Named export (for routes)
+ */
+export function requireAuth(req, res, next) {
+  return verifyToken(req, res, next);
+}
+
+/**
+ * ✅ Default export (for app-level usage)
+ */
+export default verifyToken;
