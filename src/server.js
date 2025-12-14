@@ -1,56 +1,72 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-
-import authMiddleware from "./middleware/auth.js";
-import userRoutes from "./routes/user.routes.js";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 
-/* -------------------------------------------------
-   🔥 CORS — MUST BE FIRST (CRITICAL)
----------------------------------------------------*/
+/* --------------------------------------------------
+   CORS CONFIG (Express v5 compatible)
+-------------------------------------------------- */
+const allowedOrigins = [
+  "https://blackvant.com",
+  "https://www.blackvant.com",
+];
+
 app.use(
   cors({
-    origin: ["https://blackvant.com"],
+    origin(origin, callback) {
+      // Allow server-to-server & curl
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS not allowed"), false);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Handle preflight explicitly
-app.options("*", cors());
+// 🔴 IMPORTANT: Express v5 DOES NOT allow app.options("*")
+// So we handle OPTIONS like this:
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
-/* -------------------------------------------------
-   BASIC MIDDLEWARE
----------------------------------------------------*/
+/* --------------------------------------------------
+   MIDDLEWARE
+-------------------------------------------------- */
 app.use(express.json());
 
-/* -------------------------------------------------
-   HEALTH CHECK (NO AUTH)
----------------------------------------------------*/
+/* --------------------------------------------------
+   HEALTH CHECK
+-------------------------------------------------- */
 app.get("/api/v1", (req, res) => {
   res.json({ message: "BlackVant Backend Running ✅" });
 });
 
-/* -------------------------------------------------
-   AUTHENTICATED ROUTES
----------------------------------------------------*/
-app.use("/api/v1", authMiddleware);
+/* --------------------------------------------------
+   ROUTES
+-------------------------------------------------- */
+import userRoutes from "./routes/user.routes.js";
+import depositRoutes from "./routes/deposit.routes.js";
+import withdrawalRoutes from "./routes/withdrawal.routes.js";
+
 app.use("/api/v1", userRoutes);
+app.use("/api/v1", depositRoutes);
+app.use("/api/v1", withdrawalRoutes);
 
-/* -------------------------------------------------
-   GLOBAL ERROR HANDLER (IMPORTANT)
----------------------------------------------------*/
-app.use((err, req, res, next) => {
-  console.error("🔥 Backend error:", err);
-  res.status(500).json({ error: "Internal Server Error" });
-});
-
-/* -------------------------------------------------
+/* --------------------------------------------------
    START SERVER
----------------------------------------------------*/
+-------------------------------------------------- */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 BlackVant backend running on port ${PORT}`);
