@@ -4,26 +4,43 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// GET /api/v1/me
 router.get("/me", requireAuth, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        investmentBalance: true,
-        profitBalance: true,
-        createdAt: true,
-      },
+    const { sub, email } = req.user;
+
+    if (!sub || !email) {
+      return res.status(400).json({ error: "Invalid user payload" });
+    }
+
+    // 1️⃣ Find existing user
+    let user = await prisma.user.findUnique({
+      where: { clerk_user_id: sub },
     });
 
-    return res.json({ success: true, user });
-  } catch (err) {
-    console.error("ME ROUTE ERROR:", err);
-    return res.status(500).json({ error: "Something went wrong" });
+    // 2️⃣ Create user if not exists
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          clerk_user_id: sub,
+          email: email,
+          investment_balance: 0,
+          profit_balance: 0,
+        },
+      });
+    }
+
+    // 3️⃣ Return user
+    res.json({
+      id: user.id,
+      email: user.email,
+      investmentBalance: user.investment_balance,
+      profitBalance: user.profit_balance,
+      createdAt: user.created_at,
+    });
+
+  } catch (error) {
+    console.error("GET /me error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
