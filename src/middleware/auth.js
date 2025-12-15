@@ -8,8 +8,7 @@ const client = jwksClient({
 function getKey(header, callback) {
   client.getSigningKey(header.kid, function (err, key) {
     if (err) return callback(err);
-    const signingKey = key.getPublicKey();
-    callback(null, signingKey);
+    callback(null, key.getPublicKey());
   });
 }
 
@@ -23,15 +22,15 @@ function verifyToken(req, res, next) {
     return res.status(401).json({ error: "Missing token" });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.replace("Bearer ", "");
 
   jwt.verify(
     token,
     getKey,
     {
-      audience: process.env.CLERK_AUDIENCE,
       issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
       algorithms: ["RS256"],
+      // 🚫 NO audience validation
     },
     (err, decoded) => {
       if (err) {
@@ -46,13 +45,13 @@ function verifyToken(req, res, next) {
 }
 
 /**
- * ✅ Named export (for routes)
+ * Named export (routes)
  */
 export function requireAuth(req, res, next) {
   return verifyToken(req, res, next);
 }
 
 /**
- * ✅ Default export (for app-level usage)
+ * Default export (app-level)
  */
 export default verifyToken;
