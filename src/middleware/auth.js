@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
 const client = jwksClient({
-  jwksUri: process.env.CLERK_JWKS_URL,
+  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
 });
 
 function getKey(header, callback) {
@@ -27,15 +27,15 @@ export default function requireAuth(req, res, next) {
     {
       issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
       algorithms: ["RS256"],
-      // 🚫 NO audience validation — locked by design
+      // 🚫 No audience validation — locked
     },
     (err, decoded) => {
       if (err) {
-        console.error("JWT verify failed:", err.message);
+        console.error("JWT verification failed:", err.message);
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      // 🔒 Normalized user context (used everywhere)
+      // ✅ Normalized user context
       const clerkUserId = decoded.sub;
       const email =
         decoded.email ||
