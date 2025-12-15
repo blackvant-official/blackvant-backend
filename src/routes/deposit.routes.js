@@ -7,17 +7,20 @@ const router = express.Router();
 // GET /api/v1/me/deposits
 router.get("/me/deposits", requireAuth, async (req, res) => {
   try {
+    const { clerkUserId } = req.userContext;
+
     const deposits = await prisma.deposit.findMany({
-      where: { userId: req.user.id },
+      where: { clerkId: clerkUserId },
       orderBy: { createdAt: "desc" },
     });
 
-    res.json({ success: true, deposits });
+    return res.json({ items: deposits || [] });
   } catch (err) {
-    console.error("ERROR GET DEPOSITS:", err);
-    res.status(500).json({ error: "Something went wrong" });
+    console.error("Deposits error:", err);
+    return res.status(500).json({ items: [] });
   }
 });
+
 
 // POST /api/v1/me/deposits
 router.post("/me/deposits", requireAuth, async (req, res) => {
