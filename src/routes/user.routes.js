@@ -34,10 +34,12 @@ router.get("/me", requireAuth, async (req, res) => {
       email: user.email,
       role: user.role,
       balances: {
-        investment: Number(user.investmentBalance ?? 0),
-        profit: Number(user.profitBalance ?? 0),
+        investment: Number(user.investmentBalance),
+        profit: Number(user.profitBalance),
       },
     });
+
+
 
   } catch (err) {
     console.error("GET /me Prisma error:", err);
