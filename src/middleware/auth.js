@@ -12,7 +12,10 @@ function getKey(header, callback) {
   });
 }
 
-export default function requireAuth(req, res, next) {
+/**
+ * Core auth middleware (single source of truth)
+ */
+function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -27,7 +30,6 @@ export default function requireAuth(req, res, next) {
     {
       issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
       algorithms: ["RS256"],
-      // 🚫 No audience validation — locked
     },
     (err, decoded) => {
       if (err) {
@@ -35,7 +37,6 @@ export default function requireAuth(req, res, next) {
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      // ✅ Normalized user context
       const clerkUserId = decoded.sub;
       const email =
         decoded.email ||
@@ -52,3 +53,9 @@ export default function requireAuth(req, res, next) {
     }
   );
 }
+
+/**
+ * ✅ BOTH EXPORT STYLES (this fixes Render error permanently)
+ */
+export { requireAuth };
+export default requireAuth;
