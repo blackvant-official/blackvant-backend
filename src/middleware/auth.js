@@ -2,20 +2,17 @@ import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
 const client = jwksClient({
-  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
+  jwksUri: process.env.CLERK_JWKS_URL,
 });
 
 function getKey(header, callback) {
-  client.getSigningKey(header.kid, function (err, key) {
+  client.getSigningKey(header.kid, (err, key) => {
     if (err) return callback(err);
     callback(null, key.getPublicKey());
   });
 }
 
-/**
- * Core JWT verification logic
- */
-function verifyToken(req, res, next) {
+export default function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -30,28 +27,28 @@ function verifyToken(req, res, next) {
     {
       issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
       algorithms: ["RS256"],
-      // 🚫 NO audience validation
+      // 🚫 NO audience validation — locked by design
     },
     (err, decoded) => {
       if (err) {
-        console.error("JWT verification failed:", err.message);
+        console.error("JWT verify failed:", err.message);
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      req.user = decoded;
+      // 🔒 Normalized user context (used everywhere)
+      const clerkUserId = decoded.sub;
+      const email =
+        decoded.email ||
+        decoded.primary_email ||
+        decoded.email_addresses?.[0]?.email_address ||
+        null;
+
+      if (!clerkUserId) {
+        return res.status(401).json({ error: "Invalid token payload" });
+      }
+
+      req.userContext = { clerkUserId, email };
       next();
     }
   );
 }
-
-/**
- * Named export (routes)
- */
-export function requireAuth(req, res, next) {
-  return verifyToken(req, res, next);
-}
-
-/**
- * Default export (app-level)
- */
-export default verifyToken;

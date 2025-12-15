@@ -1,46 +1,46 @@
 import express from "express";
 import prisma from "../utils/prisma.js";
-import { requireAuth } from "../middleware/auth.js";
+import requireAuth from "../middleware/auth.js";
 
 const router = express.Router();
 
+/**
+ * GET /api/v1/me
+ * - Creates user on first login (idempotent)
+ * - Returns stable user payload
+ */
 router.get("/me", requireAuth, async (req, res) => {
   try {
-    const { sub, email } = req.user;
+    const { clerkUserId, email } = req.userContext;
 
-    if (!sub || !email) {
-      return res.status(400).json({ error: "Invalid user payload" });
-    }
-
-    // 1️⃣ Find existing user
+    // 1) Find user
     let user = await prisma.user.findUnique({
-      where: { clerk_user_id: sub },
+      where: { clerk_user_id: clerkUserId },
     });
 
-    // 2️⃣ Create user if not exists
+    // 2) Create on first login
     if (!user) {
       user = await prisma.user.create({
         data: {
-          clerk_user_id: sub,
-          email: email,
+          clerk_user_id: clerkUserId,
+          email: email ?? "unknown",
           investment_balance: 0,
           profit_balance: 0,
         },
       });
     }
 
-    // 3️⃣ Return user
-    res.json({
+    // 3) Respond (frontend contract)
+    return res.json({
       id: user.id,
       email: user.email,
-      investmentBalance: user.investment_balance,
-      profitBalance: user.profit_balance,
+      investmentBalance: Number(user.investment_balance),
+      profitBalance: Number(user.profit_balance),
       createdAt: user.created_at,
     });
-
-  } catch (error) {
-    console.error("GET /me error:", error);
-    res.status(500).json({ error: "Server error" });
+  } catch (err) {
+    console.error("GET /me error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
