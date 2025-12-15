@@ -50,4 +50,40 @@ router.post("/me/deposits", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/deposit", requireAuth, async (req, res) => {
+  try {
+    const { clerkUserId } = req.userContext;
+    const { amount, currency, method, txId, proofUrl } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const deposit = await prisma.deposit.create({
+      data: {
+        userId: user.id,
+        amount,
+        currency: currency || "USD",
+        method: method || "manual",
+        txId: txId || null,
+        proofUrl: proofUrl || null,
+        status: "pending",
+      },
+    });
+
+    return res.json({ success: true, depositId: deposit.id });
+  } catch (err) {
+    console.error("Deposit submit error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 export default router;
