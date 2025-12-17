@@ -8,52 +8,59 @@ const router = express.Router();
 // GET /api/v1/me/withdrawals
 router.get("/me/withdrawals", requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.userContext;
-
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
     const withdrawals = await prisma.withdrawal.findMany({
       where: { clerkId: clerkUserId },
       orderBy: { createdAt: "desc" },
     });
-
+    
     return res.json({ items: withdrawals || [] });
   } catch (err) {
     console.error("Withdrawals error:", err);
     return res.status(500).json({ items: [] });
   }
+  
 });
 
 
 // POST /api/v1/me/withdrawals
 router.post("/me/withdrawals", requireAuth, async (req, res) => {
   try {
+    const { clerkUserId } = req.userContext;
     const { amount, currency, method, targetAddress } = req.body;
 
     if (!amount || !currency || !method || !targetAddress) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Ensure user has enough profit balance
-    if (Number(req.user.profitBalance) < Number(amount)) {
-      return res.status(400).json({ error: "Insufficient profit balance" });
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    // Deduct profit immediately
+    if (user.profitBalance.lt(new Prisma.Decimal(amount.toString()))) {
+      return res.status(400).json({ error: "Insufficient profit balance" });
+    }
+    
     await prisma.user.update({
-      where: { id: req.user.id },
+      where: { id: user.id },
       data: {
         profitBalance: {
-          decrement: amount,
+          decrement: new Prisma.Decimal(amount.toString()),
         },
       },
     });
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId }
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
 
     const withdrawal = await prisma.withdrawal.create({
       data: {
