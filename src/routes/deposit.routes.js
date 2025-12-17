@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.post(
       const deposit = await prisma.deposit.create({
         data: {
           userId: user.id,
-          amount,
+          amount: new Prisma.Decimal(amount.toString()),
           currency,
           method,
           txId: txId || null,

@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
@@ -49,8 +50,9 @@ router.post("/me/withdrawals", requireAuth, async (req, res) => {
     const withdrawal = await prisma.withdrawal.create({
       data: {
         userId: req.user.id,
-        amount,
+        amount: new Prisma.Decimal(amount.toString()),
         currency,
+        source: "profit",
         method,
         targetAddress,
         status: "pending",
