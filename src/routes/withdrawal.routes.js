@@ -47,9 +47,17 @@ router.post("/me/withdrawals", requireAuth, async (req, res) => {
       },
     });
 
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const withdrawal = await prisma.withdrawal.create({
       data: {
-        userId: req.user.id,
+        userId: user.id,
         amount: new Prisma.Decimal(amount.toString()),
         currency,
         source: "profit",
