@@ -23,32 +23,49 @@ router.get("/me/deposits", requireAuth, async (req, res) => {
 
 
 // POST /api/v1/me/deposits
-router.post("/me/deposits", requireAuth, async (req, res) => {
-  try {
-    const { amount, currency, method, proofUrl, txId } = req.body;
+import { uploadProof } from "../middleware/upload.js";
 
-    if (!amount || !currency || !method) {
-      return res.status(400).json({ error: "Missing required fields" });
+router.post(
+  "/me/deposits",
+  requireAuth,
+  uploadProof.single("proof"),
+  async (req, res) => {
+    try {
+      const { amount, currency, method, txId } = req.body;
+      const { clerkUserId } = req.userContext;
+
+      if (!amount || !currency || !method || !req.file) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const deposit = await prisma.deposit.create({
+        data: {
+          userId: user.id,
+          amount,
+          currency,
+          method,
+          txId: txId || null,
+          proofUrl: `/uploads/proofs/${req.file.filename}`,
+          status: "pending",
+        },
+      });
+
+      res.json({ success: true, deposit });
+    } catch (err) {
+      console.error("ERROR CREATE DEPOSIT:", err);
+      res.status(500).json({ error: "Something went wrong" });
     }
-
-    const deposit = await prisma.deposit.create({
-      data: {
-        userId: req.user.id,
-        amount,
-        currency,
-        method,
-        proofUrl,
-        txId,
-        status: "pending",
-      },
-    });
-
-    res.json({ success: true, deposit });
-  } catch (err) {
-    console.error("ERROR CREATE DEPOSIT:", err);
-    res.status(500).json({ error: "Something went wrong" });
   }
-});
+);
+
 
 router.post("/deposit", requireAuth, async (req, res) => {
   try {
