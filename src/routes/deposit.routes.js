@@ -10,17 +10,26 @@ router.get("/me/deposits", requireAuth, async (req, res) => {
   try {
     const { clerkUserId } = req.userContext;
 
-    const deposits = await prisma.deposit.findMany({
+    const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ items: [] });
+    }
+
+    const deposits = await prisma.deposit.findMany({
+      where: { userId: user.id }, // ✅ FIX
       orderBy: { createdAt: "desc" },
     });
 
-    return res.json({ items: deposits || [] });
+    return res.json(deposits);
   } catch (err) {
     console.error("Deposits error:", err);
     return res.status(500).json({ items: [] });
   }
 });
+
 
 
 // POST /api/v1/me/deposits
