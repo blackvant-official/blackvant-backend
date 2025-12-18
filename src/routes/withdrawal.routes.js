@@ -8,33 +8,35 @@ const router = express.Router();
 // GET /api/v1/me/withdrawals
 router.get("/me/withdrawals", requireAuth, async (req, res) => {
   try {
+    const { clerkUserId } = req.userContext;
+
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId }
     });
-    
+
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.json([]);
     }
-    
+
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { clerkId: clerkUserId },
-      orderBy: { createdAt: "desc" },
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" }
     });
-    
-    return res.json({ items: withdrawals || [] });
+
+    return res.json(withdrawals);
   } catch (err) {
     console.error("Withdrawals error:", err);
-    return res.status(500).json({ items: [] });
+    return res.status(500).json([]);
   }
-  
 });
+
 
 
 // POST /api/v1/me/withdrawals
 router.post("/me/withdrawals", requireAuth, async (req, res) => {
   try {
     const { clerkUserId } = req.userContext;
-    const { amount, currency, method, targetAddress } = req.body;
+    const { amount, currency, method, targetAddress, source } = req.body;
 
     if (!amount || !currency || !method || !targetAddress) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -52,6 +54,12 @@ router.post("/me/withdrawals", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Insufficient profit balance" });
     }
     
+    if (source === "capital") {
+      return res.status(403).json({
+        error: "Capital withdrawals are currently locked"
+      });
+    }
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -67,7 +75,7 @@ router.post("/me/withdrawals", requireAuth, async (req, res) => {
         userId: user.id,
         amount: new Prisma.Decimal(amount.toString()),
         currency,
-        source: "profit",
+        source,
         method,
         targetAddress,
         status: "pending",
