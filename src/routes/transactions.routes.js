@@ -10,7 +10,17 @@ const prisma = new PrismaClient();
  * Returns FULL immutable transaction ledger
  */
 router.get("/me/transactions", authMiddleware, async (req, res) => {
-    const userId = req.user.id;
+    const { clerkUserId } = req.userContext;
+        const user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId }
+    });
+
+    if (!user) {
+        return res.status(404).json({ error: "User not found" });
+    }
+
+    const userId = user.id;
+
 
     try {
         // 1. Fetch deposits
@@ -32,7 +42,7 @@ router.get("/me/transactions", authMiddleware, async (req, res) => {
             ledger.push({
                 id: d.id,
                 type: "deposit",
-                amount: d.amount,              // positive
+                amount: Number(d.amount),              // positive
                 status: d.status,
                 method: d.method,
                 createdAt: d.createdAt
@@ -43,7 +53,7 @@ router.get("/me/transactions", authMiddleware, async (req, res) => {
             ledger.push({
                 id: w.id,
                 type: "withdrawal",
-                amount: -Math.abs(w.amount),   // negative
+                amount: Number(d.amount),   // negative
                 status: w.status,
                 method: w.method,
                 createdAt: w.createdAt
