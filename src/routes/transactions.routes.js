@@ -42,7 +42,7 @@ router.get("/me/transactions", authMiddleware, async (req, res) => {
             ledger.push({
                 id: d.id,
                 type: "deposit",
-                amount: Number(d.amount),              // positive
+                amount: Number(d.amount),            // positive
                 status: d.status,
                 method: d.method,
                 createdAt: d.createdAt
@@ -53,7 +53,7 @@ router.get("/me/transactions", authMiddleware, async (req, res) => {
             ledger.push({
                 id: w.id,
                 type: "withdrawal",
-                amount: Number(d.amount),   // negative
+                amount: -Math.abs(Number(w.amount)),   // negative
                 status: w.status,
                 method: w.method,
                 createdAt: w.createdAt
