@@ -106,12 +106,14 @@ router.get("/support/ticket/:ticketId", requireAuth, async (req, res) => {
         ticketId,
         userId
       },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" }
+
+        where: {
+          ticketId,
+          userId
         }
-      }
-    });
+      });
+
+  
 
     
     if (!user) {
