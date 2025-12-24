@@ -65,21 +65,32 @@ router.post("/support/ticket", requireAuth, async (req, res) => {
  */
 router.get("/support/tickets", requireAuth, async (req, res) => {
   try {
+    console.log("SUPPORT TICKETS CONTEXT:", req.userContext);
+
     const { userId } = req.userContext;
+
+    if (!userId) {
+      console.error("Missing userId in userContext");
+      return res.status(500).json({ error: "User context missing" });
+    }
+
+    console.log("QUERYING SUPPORT TICKETS FOR USER:", userId);
 
     const tickets = await prisma.supportTicket.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" }
     });
 
+    console.log("SUPPORT TICKETS FOUND:", tickets.length);
+
     res.json(tickets);
 
-
   } catch (err) {
-    console.error("Load tickets error:", err);
+    console.error("Load tickets error (FULL):", err);
     res.status(500).json({ error: "Failed to load tickets" });
   }
 });
+
 
 /**
  * GET SINGLE TICKET + MESSAGES
