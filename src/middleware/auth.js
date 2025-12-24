@@ -1,3 +1,6 @@
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
@@ -44,12 +47,40 @@ function requireAuth(req, res, next) {
         decoded.email_addresses?.[0]?.email_address ||
         null;
 
-      if (!clerkUserId) {
-        return res.status(401).json({ error: "Invalid token payload" });
-      }
+            if (!clerkUserId) {
+              return res.status(401).json({ error: "Invalid token payload" });
+            }
+          
+            // ✅ ENSURE USER EXISTS IN DATABASE
+            (async () => {
+              try {
+                let user = await prisma.user.findUnique({
+                  where: { clerkId: clerkUserId }
+                });
+              
+                if (!user) {
+                  user = await prisma.user.create({
+                    data: {
+                      clerkId: clerkUserId,
+                      email
+                    }
+                  });
+                }
+              
+                req.userContext = {
+                  clerkUserId,
+                  userId: user.id,
+                  email
+                };
+              
+                next();
+              
+              } catch (dbErr) {
+                console.error("Auth DB sync error:", dbErr);
+                return res.status(500).json({ error: "Authentication failed" });
+              }
+            })();
 
-      req.userContext = { clerkUserId, email };
-      next();
     }
   );
 }
