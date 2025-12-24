@@ -37,6 +37,7 @@ model User {
   withdrawals       Withdrawal[]
   profitPayouts     ProfitPayout[]
   auditLogs         AuditLog[]
+  supportTickets    SupportTicket[]
 
   // Opposite relations for admin actions
   depositsReviewed     Deposit[]            @relation("DepositReviewedBy")
@@ -158,4 +159,38 @@ model AuditLog {
   userAgent   String?
 
   createdAt   DateTime @default(now())
+}
+
+// ------------------------------------------------------
+// SUPPORT TICKET
+// ------------------------------------------------------
+model SupportTicket {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  subject     String
+  description String
+  priority    String   // low | medium | high
+  status      String   @default("open") // open | in_progress | resolved | closed
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    SupportMessage[]
+}
+
+// ------------------------------------------------------
+// SUPPORT MESSAGE (THREAD)
+// ------------------------------------------------------
+model SupportMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+
+  sender    String   // user | admin
+  message   String
+
+  createdAt DateTime @default(now())
 }

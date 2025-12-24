@@ -62,11 +62,13 @@ import userRoutes from "./routes/user.routes.js";
 import depositRoutes from "./routes/deposit.routes.js";
 import withdrawalRoutes from "./routes/withdrawal.routes.js";
 import transactionRoutes from "./routes/transactions.routes.js";
+import supportRoutes from "./routes/support.routes.js";
 
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
 app.use("/api/v1", withdrawalRoutes);
 app.use("/api/v1", transactionRoutes);
+app.use("/api/v1", supportRoutes);
 
 /* --------------------------------------------------
    START SERVER
