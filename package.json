@@ -4,9 +4,11 @@
   "type": "module",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "dev": "node src/server.js"
-  },
+"scripts": {
+  "dev": "node src/server.js",
+  "build": "prisma generate",
+  "start": "node src/server.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
