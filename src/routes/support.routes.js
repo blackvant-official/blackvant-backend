@@ -65,20 +65,15 @@ router.post("/support/ticket", requireAuth, async (req, res) => {
  */
 router.get("/support/tickets", requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.userContext;
-
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId }
-    });
-
-    if (!user) return res.json([]);
+    const { userId } = req.userContext;
 
     const tickets = await prisma.supportTicket.findMany({
-      where: { userId: user.id },
+      where: { userId },
       orderBy: { createdAt: "desc" }
     });
 
     res.json(tickets);
+
 
   } catch (err) {
     console.error("Load tickets error:", err);
@@ -93,20 +88,12 @@ router.get("/support/tickets", requireAuth, async (req, res) => {
 router.get("/support/ticket/:ticketId", requireAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { clerkUserId } = req.userContext;
-
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId }
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const { userId } = req.userContext;
 
     const ticket = await prisma.supportTicket.findFirst({
       where: {
         ticketId,
-        userId: user.id
+        userId
       },
       include: {
         messages: {
@@ -114,6 +101,11 @@ router.get("/support/ticket/:ticketId", requireAuth, async (req, res) => {
         }
       }
     });
+
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     if (!ticket) {
       return res.status(404).json({ error: "Ticket not found" });
