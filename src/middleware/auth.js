@@ -40,7 +40,11 @@ function requireAuth(req, res, next) {
         return res.status(401).json({ error: "Invalid token" });
       }
 
-      const clerkUserId = decoded.sub;
+      const clerkUserId =
+        decoded.sub ||
+        decoded.user_id ||
+        decoded.uid ||
+        decoded.id;
       const email =
         decoded.email ||
         decoded.primary_email ||
