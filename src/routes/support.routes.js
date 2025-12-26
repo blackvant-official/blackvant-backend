@@ -105,31 +105,28 @@ router.get("/support/ticket/:ticketId", requireAuth, async (req, res) => {
       where: {
         ticketId,
         userId
-      },
-
-        where: {
-          ticketId,
-          userId
-        }
-      });
-
-  
-
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+      }
+    });
 
     if (!ticket) {
       return res.status(404).json({ error: "Ticket not found" });
     }
 
-    res.json(ticket);
+    const messages = await prisma.supportMessage.findMany({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: "asc" }
+    });
+
+    res.json({
+      ...ticket,
+      messages
+    });
 
   } catch (err) {
-    console.error("Load ticket error:", err);
+    console.error("Load ticket error (FULL):", err);
     res.status(500).json({ error: "Failed to load ticket" });
   }
 });
+
 
 export default router;
