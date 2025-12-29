@@ -64,6 +64,7 @@ import withdrawalRoutes from "./routes/withdrawal.routes.js";
 import transactionRoutes from "./routes/transactions.routes.js";
 import supportRoutes from "./routes/support.routes.js";
 import uploadsRoutes from "./routes/uploads.routes.js";
+import { requireAuth } from "./middleware/auth.js";
 
 
 app.use("/api/v1", userRoutes);
@@ -71,7 +72,7 @@ app.use("/api/v1", depositRoutes);
 app.use("/api/v1", withdrawalRoutes);
 app.use("/api/v1", transactionRoutes);
 app.use("/api/v1", supportRoutes);
-app.use("/api/v1/uploads", uploadsRoutes);
+app.use("/api/v1/uploads", requireAuth, uploadsRoutes);
 
 /* --------------------------------------------------
    START SERVER

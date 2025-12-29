@@ -10,7 +10,7 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 // Request signed upload URL
 router.post("/request", async (req, res) => {
-  const userId = req.auth.userId; // Clerk middleware
+  const { clerkUserId } = req.userContext; // Clerk middleware
   const { purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
   if (!userId) return res.sendStatus(401);
@@ -31,7 +31,7 @@ router.post("/request", async (req, res) => {
 
 // Confirm upload and persist
 router.post("/confirm", async (req, res) => {
-  const userId = req.auth.userId;
+  const { clerkUserId } = req.userContext;
   const { storageKey, purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
   if (!userId) return res.sendStatus(401);
@@ -41,7 +41,7 @@ router.post("/confirm", async (req, res) => {
 
   const attachment = await prisma.fileAttachment.create({
     data: {
-      ownerUserId: userId,
+      ownerUserId: clerkUserId,
       purpose,
       mimeType,
       fileSize,
@@ -57,7 +57,7 @@ router.post("/confirm", async (req, res) => {
 
 // Signed download
 router.get("/:id/download", async (req, res) => {
-  const userId = req.auth.userId;
+  const { clerkUserId } = req.userContext;
   const { id } = req.params;
 
   if (!userId) return res.sendStatus(401);
