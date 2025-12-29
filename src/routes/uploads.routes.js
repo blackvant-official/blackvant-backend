@@ -14,12 +14,12 @@ router.post("/request", async (req, res) => {
   const { clerkUserId } = req.userContext; // Clerk middleware
   const { purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
-  if (!userId) return res.sendStatus(401);
+  if (!clerkUserId) return res.sendStatus(401);
   if (!ALLOWED_MIME.includes(mimeType)) return res.status(400).json({ error: "Invalid mime" });
   if (fileSize > MAX_SIZE) return res.status(400).json({ error: "File too large" });
 
   const safeName = originalName.replace(/[^\w.\-]/g, "_");
-  const key = `users/${userId}/${purpose}/${uuidv4()}-${safeName}`;
+  const key = `users/${clerkUserId}/${purpose}/${uuidv4()}-${safeName}`;
 
   const uploadUrl = await signPutUrl({
     key,
@@ -36,7 +36,7 @@ router.post("/confirm", async (req, res) => {
   const { clerkUserId } = req.userContext;
   const { storageKey, purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
-  if (!userId) return res.sendStatus(401);
+  if (!clerkUserId) return res.sendStatus(401);
 
   const exists = await objectExists(storageKey);
   if (!exists) return res.status(400).json({ error: "Object not found" });
@@ -63,10 +63,10 @@ router.get("/:id/download", async (req, res) => {
   const { clerkUserId } = req.userContext;
   const { id } = req.params;
 
-  if (!userId) return res.sendStatus(401);
+  if (!clerkUserId) return res.sendStatus(401);
 
   const file = await prisma.fileAttachment.findUnique({ where: { id } });
-  if (!file || file.ownerUserId !== userId) return res.sendStatus(403);
+  if (!file || file.ownerUserId !== clerkUserId) return res.sendStatus(403);
 
   const url = await signGetUrl(file.storageKey);
   res.redirect(url);
