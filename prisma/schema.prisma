@@ -60,7 +60,7 @@ model Deposit {
   method         String
 
   txId           String?
-  proofUrl       String?
+  proofKey       String?
 
   status         String   @default("pending") // pending | approved | rejected
   statusReason   String?
