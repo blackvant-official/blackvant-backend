@@ -194,3 +194,27 @@ model SupportMessage {
 
   createdAt DateTime @default(now())
 }
+
+model FileAttachment {
+  id           String   @id @default(cuid())
+  ownerUserId  String
+  purpose      AttachmentPurpose
+  mimeType     String
+  fileSize     Int
+  storageKey   String
+  originalName String
+
+  depositId    String?
+  ticketId     String?
+
+  createdAt    DateTime @default(now())
+
+  @@index([ownerUserId])
+  @@index([depositId])
+  @@index([ticketId])
+}
+
+enum AttachmentPurpose {
+  DEPOSIT_PROOF
+  SUPPORT_MESSAGE
+}
