@@ -74,6 +74,14 @@ app.use("/api/v1", transactionRoutes);
 app.use("/api/v1", supportRoutes);
 app.use("/api/v1/uploads", requireAuth, uploadsRoutes);
 
+app.use((err, req, res, next) => {
+  console.error("🔥 GLOBAL ERROR:", err);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+  });
+});
+
 /* --------------------------------------------------
    START SERVER
 -------------------------------------------------- */

@@ -10,6 +10,7 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 // Request signed upload URL
 router.post("/request", async (req, res) => {
+  console.log("UPLOAD REQUEST HIT", req.body);
   const { clerkUserId } = req.userContext; // Clerk middleware
   const { purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
@@ -31,6 +32,7 @@ router.post("/request", async (req, res) => {
 
 // Confirm upload and persist
 router.post("/confirm", async (req, res) => {
+  console.log("UPLOAD CONFIRM HIT", req.body);
   const { clerkUserId } = req.userContext;
   const { storageKey, purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
@@ -57,6 +59,7 @@ router.post("/confirm", async (req, res) => {
 
 // Signed download
 router.get("/:id/download", async (req, res) => {
+  console.log("UPLOAD DOWNLOAD HIT", req.params);
   const { clerkUserId } = req.userContext;
   const { id } = req.params;
 

@@ -50,7 +50,8 @@ router.post("/me/deposits", requireAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-
+    
+    console.log("DEPOSIT BODY:", req.body);
     const deposit = await prisma.deposit.create({
       data: {
         userId: user.id,
