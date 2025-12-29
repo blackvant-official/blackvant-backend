@@ -33,57 +33,14 @@ router.get("/me/deposits", requireAuth, async (req, res) => {
 
 
 // POST /api/v1/me/deposits
-import { uploadProof } from "../middleware/upload.js";
-
-router.post(
-  "/me/deposits",
-  requireAuth,
-  uploadProof.single("proof"),
-  async (req, res) => {
-    try {
-      const { amount, currency, method, txId } = req.body;
-      const { clerkUserId } = req.userContext;
-
-      if (!amount || !currency || !method || !req.file) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { clerkId: clerkUserId },
-      });
-
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const deposit = await prisma.deposit.create({
-        data: {
-          userId: user.id,
-          amount: new Prisma.Decimal(amount.toString()),
-          currency,
-          method,
-          txId: txId || null,
-          proofUrl: `/uploads/proofs/${req.file.filename}`,
-          status: "pending",
-        },
-      });
-
-      res.json({ success: true, deposit });
-    } catch (err) {
-      console.error("ERROR CREATE DEPOSIT:", err);
-      res.status(500).json({ error: "Something went wrong" });
-    }
-  }
-);
-
-
-router.post("/deposit", requireAuth, async (req, res) => {
+// POST /api/v1/me/deposits
+router.post("/me/deposits", requireAuth, async (req, res) => {
   try {
+    const { amount, currency, method, txId, proofKey } = req.body;
     const { clerkUserId } = req.userContext;
-    const { amount, currency, method, txId, proofUrl } = req.body;
 
-    if (!amount || Number(amount) <= 0) {
-      return res.status(400).json({ error: "Invalid amount" });
+    if (!amount || Number(amount) <= 0 || !method || !proofKey) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const user = await prisma.user.findUnique({
@@ -97,20 +54,21 @@ router.post("/deposit", requireAuth, async (req, res) => {
     const deposit = await prisma.deposit.create({
       data: {
         userId: user.id,
-        amount,
+        amount: new Prisma.Decimal(amount.toString()),
         currency: currency || "USD",
-        method: method || "manual",
+        method,
         txId: txId || null,
-        proofUrl: proofUrl || null,
+        proofKey,              // ✅ S3 key stored
         status: "pending",
       },
     });
 
-    return res.json({ success: true, depositId: deposit.id });
+    res.json({ success: true, deposit });
   } catch (err) {
-    console.error("Deposit submit error:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("ERROR CREATE DEPOSIT:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
+
 
 export default router;
