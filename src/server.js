@@ -68,6 +68,11 @@ import supportRoutes from "./routes/support.routes.js";
 import uploadsRoutes from "./routes/uploads.routes.js";
 import { requireAuth } from "./middleware/auth.js";
 
+// Admin Routes imports
+import adminStatsRoutes from "./routes/admin/stats.admin.routes.js";
+import adminDepositRoutes from "./routes/admin/deposit.admin.routes.js";
+import adminWithdrawalRoutes from "./routes/admin/withdrawal.admin.routes.js";
+
 
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", depositRoutes);
@@ -75,6 +80,11 @@ app.use("/api/v1", withdrawalRoutes);
 app.use("/api/v1", transactionRoutes);
 app.use("/api/v1", supportRoutes);
 app.use("/api/v1/uploads", requireAuth, uploadsRoutes);
+
+// Admin Routes 
+app.use("/api/v1/admin", adminStatsRoutes);
+app.use("/api/v1/admin", adminDepositRoutes);
+app.use("/api/v1/admin", adminWithdrawalRoutes);
 
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
