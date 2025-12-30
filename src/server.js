@@ -33,7 +33,6 @@ app.use(
   })
 );
 
-app.options("*", cors());
 
 // 🔴 IMPORTANT: Express v5 DOES NOT allow app.options("*")
 // So we handle OPTIONS like this:
