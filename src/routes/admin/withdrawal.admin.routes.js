@@ -1,13 +1,13 @@
 import { logAudit } from "../../services/audit.service.js";
 import express from "express";
 import prisma from "../../utils/prisma.js";
-import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { requireAuth, } from "../../middleware/auth.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 
 const router = express.Router();
 
 // GET /api/v1/admin/withdrawals/pending
-router.get("/withdrawals/pending", requireAuth, requireAdmin, async (req, res) => {
+router.get("/withdrawals/pending", requireAuth, async (req, res) => {
   try {
     const withdrawals = await prisma.withdrawal.findMany({
       where: { status: "pending" },
@@ -30,7 +30,6 @@ router.get("/withdrawals/pending", requireAuth, requireAdmin, async (req, res) =
 router.post(
   "/withdrawals/:id/approve",
   requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
   try {
@@ -72,7 +71,6 @@ await logAudit({
 router.post(
   "/withdrawals/:id/reject",
   requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
   try {

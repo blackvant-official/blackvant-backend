@@ -1,11 +1,11 @@
 import express from "express";
 import prisma from "../../../utils/prisma.js";
-import { requireAuth, requireAdmin } from "../../../middleware/auth.js";
+import { requireAuth, } from "../../../middleware/auth.js";
 
 const router = express.Router();
 
 // GET /api/v1/admin/profit/history
-router.get("/profit/history", requireAuth, requireAdmin, async (req, res) => {
+router.get("/profit/history", requireAuth,  async (req, res) => {
   try {
     const { page = 1, pageSize = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(pageSize);

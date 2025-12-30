@@ -2,7 +2,7 @@ import { logAudit } from "../../../services/audit.service.js";
 
 import express from "express";
 import prisma from "../../../utils/prisma.js";
-import { requireAuth, requireAdmin } from "../../../middleware/auth.js";
+import { requireAuth, } from "../../../middleware/auth.js";
 import { Decimal } from "@prisma/client/runtime/library";
 import { requireWritable } from "../../../middleware/readOnly.js";
 
@@ -12,7 +12,6 @@ const router = express.Router();
 router.post(
   "/profit/distribute",
   requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
   try {

@@ -1,11 +1,11 @@
 import express from "express";
 import prisma from "../../utils/prisma.js";
-import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { requireAuth, } from "../../middleware/auth.js";
 
 const router = express.Router();
 
 // GET /api/v1/admin/stats
-router.get("/stats", requireAuth, requireAdmin, async (req, res) => {
+router.get("/stats", requireAuth,  async (req, res) => {
   try {
     const totalUsers = await prisma.user.count();
 

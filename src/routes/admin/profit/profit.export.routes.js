@@ -1,11 +1,11 @@
 import express from "express";
 import prisma from "../../../utils/prisma.js";
-import { requireAuth, requireAdmin } from "../../../middleware/auth.js";
+import { requireAuth, } from "../../../middleware/auth.js";
 
 const router = express.Router();
 
 // GET /api/v1/admin/profit/export
-router.get("/profit/export", requireAuth, requireAdmin, async (req, res) => {
+router.get("/profit/export", requireAuth,  async (req, res) => {
   try {
     const records = await prisma.profitDistribution.findMany({
       orderBy: { declaredDate: "desc" },
