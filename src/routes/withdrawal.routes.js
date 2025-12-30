@@ -2,6 +2,7 @@ import express from "express";
 import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
+import { requireWritable } from "../middleware/readOnly.js";
 
 const router = express.Router();
 
@@ -33,7 +34,11 @@ router.get("/me/withdrawals", requireAuth, async (req, res) => {
 
 
 // POST /api/v1/me/withdrawals
-router.post("/me/withdrawals", requireAuth, async (req, res) => {
+router.post(
+  "/me/withdrawals",
+  requireAuth,
+  requireWritable,
+  async (req, res) => {
   try {
     const { clerkUserId } = req.userContext;
     const { amount, currency, method, targetAddress, source } = req.body;

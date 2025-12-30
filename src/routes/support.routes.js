@@ -1,6 +1,7 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import requireAuth from "../middleware/auth.js";
+import { requireWritable } from "../middleware/readOnly.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -15,7 +16,11 @@ function generateTicketId() {
  * CREATE SUPPORT TICKET
  * POST /api/v1/support/ticket
  */
-router.post("/support/ticket", requireAuth, async (req, res) => {
+router.post(
+  "/support/ticket",
+  requireAuth,
+  requireWritable,
+  async (req, res) => {
   try {
     const { subject, description, priority } = req.body;
     const { clerkUserId } = req.userContext;
