@@ -32,14 +32,24 @@ router.get("/stats", requireAuth,  async (req, res) => {
     });
 
     // future: pull today's profit (if profit distribution implemented)
-    const today = new Date().toISOString().split("T")[0];
-
-    const todayDistributions = await prisma.profitDistribution.aggregate({
-      _sum: { totalDistributed: true },
-      where: {
-        declaredDate: today,
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+      
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+      
+    const totalDistributedToday = await prisma.profitDistribution.aggregate({
+      _sum: {
+        totalDistributed: true
       },
+      where: {
+        declaredDate: {
+          gte: startOfToday,
+          lte: endOfToday
+        }
+      }
     });
+
 
     res.json({
       success: true,
