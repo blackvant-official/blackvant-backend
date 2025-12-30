@@ -2,6 +2,7 @@ import { logAudit } from "../../services/audit.service.js";
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { requireWritable } from "../../middleware/readOnly.js";
 
 const router = express.Router();
 
@@ -26,7 +27,12 @@ router.get("/withdrawals/pending", requireAuth, requireAdmin, async (req, res) =
 });
 
 // POST /api/v1/admin/withdrawals/:id/approve
-router.post("/withdrawals/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+router.post(
+  "/withdrawals/:id/approve",
+  requireAuth,
+  requireAdmin,
+  requireWritable,
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { txId, note } = req.body;
@@ -63,7 +69,12 @@ await logAudit({
 });
 
 // POST /api/v1/admin/withdrawals/:id/reject
-router.post("/withdrawals/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+router.post(
+  "/withdrawals/:id/reject",
+  requireAuth,
+  requireAdmin,
+  requireWritable,
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

@@ -2,11 +2,17 @@ import express from "express";
 import prisma from "../../../utils/prisma.js";
 import { requireAuth, requireAdmin } from "../../../middleware/auth.js";
 import { Decimal } from "@prisma/client/runtime/library";
+import { requireWritable } from "../../../middleware/readOnly.js";
 
 const router = express.Router();
 
 // POST /api/v1/admin/profit/calculate
-router.post("/profit/calculate", requireAuth, requireAdmin, async (req, res) => {
+router.post(
+  "/profit/calculate",
+  requireAuth,
+  requireAdmin,
+  requireWritable,
+  async (req, res) => {
   try {
     const { declaredProfit, distributionPercent, distributionDate } = req.body;
 
