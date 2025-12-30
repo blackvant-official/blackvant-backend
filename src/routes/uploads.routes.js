@@ -2,7 +2,9 @@ import express from "express";
 import { signPutUrl, signGetUrl, objectExists } from "../utils/s3.js";
 import prisma from "../utils/prisma.js"; // adjust import to your setup
 import { v4 as uuidv4 } from "uuid";
+import { requireAuth } from "../middleware/auth.js";
 import { requireWritable } from "../middleware/readOnly.js";
+
 
 const router = express.Router();
 
