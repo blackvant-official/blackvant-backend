@@ -12,6 +12,7 @@ const app = express();
 const allowedOrigins = [
   "https://blackvant.com",
   "https://www.blackvant.com",
+  "https://admin.blackvant.com",
 ];
 
 app.use(
@@ -31,6 +32,8 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+app.options("*", cors());
 
 // 🔴 IMPORTANT: Express v5 DOES NOT allow app.options("*")
 // So we handle OPTIONS like this:
