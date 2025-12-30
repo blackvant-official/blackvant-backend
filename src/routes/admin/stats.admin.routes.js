@@ -34,10 +34,10 @@ router.get("/stats", requireAuth,  async (req, res) => {
     // future: pull today's profit (if profit distribution implemented)
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-      
+
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
-      
+
     const totalDistributedToday = await prisma.profitDistribution.aggregate({
       _sum: {
         totalDistributed: true
@@ -63,7 +63,8 @@ router.get("/stats", requireAuth,  async (req, res) => {
       totalInvestmentPool:
         investmentPool._sum.investmentBalance || 0,
       todayDistributed:
-        todayDistributions._sum.totalDistributed || 0,
+        totalDistributedToday._sum.totalDistributed || 0,
+
     });
   } catch (err) {
     console.error("ADMIN STATS ERROR:", err);
