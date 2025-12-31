@@ -90,22 +90,29 @@ function requireAuth(req, res, next) {
   );
 }
 
-export function requireAdmin(req, res, next) {
+export async function requireAdmin(req, res, next) {
   try {
-    const role =
-      req.authClaims?.publicMetadata?.role ||
-      req.authClaims?.metadata?.role;
+    if (!req.userContext?.userId) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
 
-    if (role !== "super_admin") {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userContext.userId },
+      select: { role: true }
+    });
+
+    if (!user || user.role !== "super_admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
 
     next();
   } catch (err) {
-    return res.status(403).json({ error: "Admin verification failed" });
+    console.error("ADMIN AUTH ERROR:", err);
+    return res.status(500).json({ error: "Admin verification failed" });
   }
 }
 
-export { requireAuth };
+
+export { requireAuth, requireAdmin };
 export default requireAuth;
 

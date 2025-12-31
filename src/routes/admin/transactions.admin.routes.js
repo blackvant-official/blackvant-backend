@@ -51,6 +51,21 @@ router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
 
     res.json({ transactions: ledger });
 
+    const json = await res.json();
+    const rows = json.transactions || [];
+      
+    return rows.map(t => ({
+      id: t.id,
+      date: new Date(t.createdAt).toLocaleString(),
+      user: t.user?.email || "-",
+      amount: Math.abs(Number(t.amount)),
+      method: t.method || "-",
+      status: t.status || "completed",
+      type: t.type,
+      direction: t.type === "withdrawal" ? "out" : "in"
+    }));
+
+
   } catch (err) {
     console.error("ADMIN TRANSACTIONS ERROR:", err);
     res.status(500).json({ error: "Failed to load transactions" });
