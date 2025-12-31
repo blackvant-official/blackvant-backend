@@ -90,7 +90,7 @@ function requireAuth(req, res, next) {
   );
 }
 
-export async function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   try {
     if (!req.userContext?.userId) {
       return res.status(401).json({ error: "Unauthenticated" });
