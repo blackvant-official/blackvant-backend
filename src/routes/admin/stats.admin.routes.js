@@ -104,7 +104,7 @@ router.get("/audit-logs", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/v1/admin/settings
-router.get("/settings", requireAuth, requireAdmin, async (req, res) => {
+router.get("/settings", requireAuth, async (req, res) => {
   try {
     const [
       usersCount,
