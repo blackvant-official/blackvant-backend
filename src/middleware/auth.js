@@ -39,6 +39,7 @@ function requireAuth(req, res, next) {
         console.error("JWT verification failed:", err.message);
         return res.status(401).json({ error: "Invalid token" });
       }
+      req.authClaims = decoded;
 
       const clerkUserId =
         decoded.sub ||
@@ -89,8 +90,25 @@ function requireAuth(req, res, next) {
   );
 }
 
+export function requireAdmin(req, res, next) {
+  try {
+    const role =
+      req.authClaims?.publicMetadata?.role ||
+      req.authClaims?.metadata?.role;
+
+    if (role !== "super_admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Admin verification failed" });
+  }
+}
+
+
 /**
  * ✅ BOTH EXPORT STYLES (this fixes Render error permanently)
  */
-export { requireAuth };
+export { requireAuth, requireAdmin };
 export default requireAuth;
