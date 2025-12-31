@@ -106,9 +106,6 @@ export function requireAdmin(req, res, next) {
   }
 }
 
-
-/**
- * ✅ BOTH EXPORT STYLES (this fixes Render error permanently)
- */
-export { requireAuth, requireAdmin };
+export { requireAuth };
 export default requireAuth;
+
