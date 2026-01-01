@@ -30,53 +30,91 @@ router.get("/deposits/pending", requireAuth,  async (req, res) => {
 router.post(
   "/deposits/:id/approve",
   requireAuth,
-  requireWritable,
+  requireAdmin,
   async (req, res) => {
-  try {
-    const { id } = req.params;
+    const depositId = req.params.id;
+    const adminId = req.auth.userId;
 
-    const deposit = await prisma.deposit.findUnique({ where: { id } });
-    if (!deposit) return res.status(404).json({ error: "Deposit not found" });
-    if (deposit.status !== "pending")
-      return res.status(400).json({ error: "Deposit already processed" });
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Lock deposit row
+        const deposit = await tx.deposit.findUnique({
+          where: { id: depositId },
+          lock: { mode: "for update" }
+        });
 
-    // Transaction: approve deposit and update user balance
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.deposit.update({
-        where: { id },
-        data: {
-          status: "approved",
-          reviewedById: req.user.id,
-          approvedAt: new Date(),
-        },
+        if (!deposit) {
+          throw new Error("DEPOSIT_NOT_FOUND");
+        }
+
+        if (deposit.status !== "PENDING") {
+          throw new Error("DEPOSIT_ALREADY_PROCESSED");
+        }
+
+        // 2. Idempotency check (ledger)
+        const existingLedger = await tx.ledger.findFirst({
+          where: {
+            referenceType: "DEPOSIT",
+            referenceId: deposit.id
+          }
+        });
+
+        if (existingLedger) {
+          throw new Error("DEPOSIT_ALREADY_LEDGERED");
+        }
+
+        // 3. Create ledger entry
+        await tx.ledger.create({
+          data: {
+            userId: deposit.userId,
+            amount: deposit.amount,
+            direction: "IN",
+            referenceType: "DEPOSIT",
+            referenceId: deposit.id
+          }
+        });
+
+        // 4. Update deposit status
+        await tx.deposit.update({
+          where: { id: deposit.id },
+          data: { status: "APPROVED" }
+        });
+
+        // 5. Write audit log
+        await tx.auditLog.create({
+          data: {
+            action: "DEPOSIT_APPROVED",
+            actorId: adminId,
+            entityType: "DEPOSIT",
+            entityId: deposit.id,
+            meta: {
+              amount: deposit.amount
+            }
+          }
+        });
+
+        return { success: true };
       });
 
-      await tx.user.update({
-        where: { id: deposit.userId },
-        data: {
-          investmentBalance: {
-            increment: deposit.amount,
-            
-            
-        },
-    },
-});
-});
+      return res.json(result);
+    } catch (err) {
+      if (
+        err.message === "DEPOSIT_ALREADY_PROCESSED" ||
+        err.message === "DEPOSIT_ALREADY_LEDGERED"
+      ) {
+        return res.status(409).json({ error: err.message });
+      }
 
-await logAudit({
-  actorId: req.user.id,
-  action: "DEPOSIT_APPROVED",
-  entityType: "deposit",
-  entityId: deposit.id,
-  meta: { amount: deposit.amount }
-});
+      if (err.message === "DEPOSIT_NOT_FOUND") {
+        return res.status(404).json({ error: "Deposit not found" });
+      }
 
-    res.json({ success: true, message: "Deposit approved" });
-  } catch (err) {
-    console.error("ADMIN APPROVE DEPOSIT ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
+      console.error("DEPOSIT APPROVAL ERROR:", err);
+      return res.status(500).json({ error: "Deposit approval failed" });
+    }
   }
-});
+);
+
 
 // POST /api/v1/admin/deposits/:id/reject
 router.post(
