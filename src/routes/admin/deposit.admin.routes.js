@@ -30,7 +30,6 @@ router.get("/deposits/pending", requireAuth,  async (req, res) => {
 router.post(
   "/deposits/:id/approve",
   requireAuth,
-  requireAdmin,
   async (req, res) => {
     const depositId = req.params.id;
     const adminId = req.auth.userId;
