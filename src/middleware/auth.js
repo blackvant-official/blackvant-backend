@@ -77,8 +77,14 @@ function requireAuth(req, res, next) {
                   userId: user.id,
                   email
                 };
-              
+                
+                // 🔒 NORMALIZED AUTH CONTEXT (REQUIRED)
+                req.auth = {
+                  userId: clerkUserId
+                };
+                
                 next();
+
               
               } catch (dbErr) {
                 console.error("Auth DB sync error:", dbErr);
