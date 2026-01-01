@@ -43,27 +43,6 @@ router.get("/stats", requireAuth, async (req, res) => {
 });
 
 
-    res.json({
-      success: true,
-      totalUsers,
-      totalDepositsApproved:
-        approvedDeposits._sum.amount || 0,
-      totalWithdrawalsApproved:
-        approvedWithdrawals._sum.amount || 0,
-      pendingDeposits,
-      pendingWithdrawals,
-      totalInvestmentPool:
-        investmentPool._sum.investmentBalance || 0,
-      todayDistributed:
-        totalDistributedToday._sum.totalDistributed || 0,
-
-    });
-  } catch (err) {
-    console.error("ADMIN STATS ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
-  }
-});
-
 // GET /api/v1/admin/settings
 router.get("/settings", requireAuth, async (req, res) => {
   try {
