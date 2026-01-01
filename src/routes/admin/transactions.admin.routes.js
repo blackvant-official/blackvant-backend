@@ -1,6 +1,6 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
-import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { requireAuth } from "../../middleware/auth.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
  * GET /api/v1/admin/transactions
  * Global immutable ledger (admin only)
  */
-router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
+router.get("/transactions", requireAuth, async (req, res) => {
   try {
     const deposits = await prisma.deposit.findMany({
       include: { user: true },
@@ -50,20 +50,6 @@ router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
     ledger.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ transactions: ledger });
-
-    const json = await res.json();
-    const rows = json.transactions || [];
-      
-    return rows.map(t => ({
-      id: t.id,
-      date: new Date(t.createdAt).toLocaleString(),
-      user: t.user?.email || "-",
-      amount: Math.abs(Number(t.amount)),
-      method: t.method || "-",
-      status: t.status || "completed",
-      type: t.type,
-      direction: t.type === "withdrawal" ? "out" : "in"
-    }));
 
 
   } catch (err) {

@@ -6,7 +6,7 @@ const router = express.Router();
 
 
 // GET /api/v1/admin/profits/history
-router.get("/profits/history", requireAuth, requireAdmin, async (req, res) => {
+router.get("/profits/history", requireAuth, async (req, res) => {
   try {
     const distributions = await prisma.profitDistribution.findMany({
       orderBy: { declaredDate: "desc" },
