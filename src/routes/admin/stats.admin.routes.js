@@ -4,80 +4,41 @@ import { requireAuth, } from "../../middleware/auth.js";
 
 const router = express.Router();
 
-// GET /api/v1/admin/stats
-router.get("/stats", requireAuth,  async (req, res) => {
+router.get("/stats", requireAuth, async (req, res) => {
   try {
-    const totalUsers = await prisma.user.count();
-
-    const approvedDeposits = await prisma.deposit.aggregate({
-      _sum: { amount: true },
-      where: { status: "approved" },
-    });
-
-    const approvedWithdrawals = await prisma.withdrawal.aggregate({
-      _sum: { amount: true },
-      where: { status: "approved" },
-    });
-
-    const pendingDeposits = await prisma.deposit.count({
-      where: { status: "pending" },
-    });
-
-    const pendingWithdrawals = await prisma.withdrawal.count({
-      where: { status: "pending" },
-    });
-
-    const investmentPool = await prisma.user.aggregate({
-      _sum: { investmentBalance: true },
-    });
-
-    // future: pull today's profit (if profit distribution implemented)
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-
-    const totalDistributedToday = await prisma.profitDistribution.aggregate({
-      _sum: {
-        totalDistributed: true
+    return res.json({
+      "7d": {
+        labels: [],
+        investment: [],
+        investors: [],
+        withdrawals: [],
+        profits: []
       },
-      where: {
-        declaredDate: {
-          gte: startOfToday,
-          lte: endOfToday
-        }
+      "30d": {
+        labels: [],
+        investment: [],
+        investors: [],
+        withdrawals: [],
+        profits: []
+      },
+      "90d": {
+        labels: [],
+        investment: [],
+        investors: [],
+        withdrawals: [],
+        profits: []
+      },
+      "all": {
+        labels: [],
+        investment: [],
+        investors: [],
+        withdrawals: [],
+        profits: []
       }
-    });
-
-    // GET /api/v1/admin/audit-logs
-router.get("/audit-logs", requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const logs = await prisma.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        actor: {
-          select: { email: true }
-        }
-      }
-    });
-
-    res.json({
-      logs: logs.map(l => ({
-        id: l.id,
-        date: l.createdAt,
-        actor: l.actor?.email || "System",
-        action: l.action,
-        entity: l.entityType,
-        entityId: l.entityId,
-        ip: l.ip || "-",
-        details: l.meta || {}
-      }))
     });
   } catch (err) {
-    console.error("AUDIT LOGS ERROR:", err);
-    res.status(500).json({ error: "Failed to load audit logs" });
+    console.error("ADMIN STATS ERROR:", err);
+    res.status(500).json({ error: "Admin stats failed" });
   }
 });
 
