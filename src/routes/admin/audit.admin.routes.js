@@ -1,10 +1,22 @@
+import express from "express";
+import prisma from "../../utils/prisma.js";
+import { requireAuth } from "../../middleware/auth.js";
+
+const router = express.Router();
+
+/**
+ * GET /api/v1/admin/audit-logs
+ * Phase A — Read-only
+ */
 router.get("/audit-logs", requireAuth, async (req, res) => {
   try {
     const logs = await prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 200,
       include: {
-        actor: { select: { email: true } }
+        actor: {
+          select: { email: true }
+        }
       }
     });
 
@@ -25,3 +37,5 @@ router.get("/audit-logs", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to load audit logs" });
   }
 });
+
+export default router;
