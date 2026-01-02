@@ -74,6 +74,7 @@ import adminDepositRoutes from "./routes/admin/deposit.admin.routes.js";
 import adminWithdrawalRoutes from "./routes/admin/withdrawal.admin.routes.js";
 import adminTransactionsRoutes from "./routes/admin/transactions.admin.routes.js";
 import auditAdminRoutes from "./routes/admin/audit.admin.routes.js";
+import ledgerAdminRoutes from "./routes/admin/ledger.admin.routes.js";
 
 
 app.use("/api/v1", userRoutes);
@@ -89,6 +90,7 @@ app.use("/api/v1/admin", adminDepositRoutes);
 app.use("/api/v1/admin", adminWithdrawalRoutes);
 app.use("/api/v1/admin", adminTransactionsRoutes);
 app.use("/api/v1/admin", auditAdminRoutes);
+app.use("/api/v1/admin/ledger", ledgerAdminRoutes);
 
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
