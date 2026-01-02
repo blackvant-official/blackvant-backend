@@ -46,16 +46,16 @@ router.post(
             status: "APPROVED"
           }
         });
-        
+
         if (updated.count === 0) {
           throw new Error("DEPOSIT_ALREADY_PROCESSED");
         }
-        
+
         // 2. Re-fetch approved deposit
         const deposit = await tx.deposit.findUnique({
           where: { id: depositId }
         });
-        
+
         if (!deposit) {
           throw new Error("DEPOSIT_NOT_FOUND");
         }
@@ -130,39 +130,68 @@ router.post(
 router.post(
   "/deposits/:id/reject",
   requireAuth,
-  requireWritable,
+  requireAdmin,
   async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
+    const depositId = req.params.id;
+    const adminId = req.auth.userId;
 
-    const deposit = await prisma.deposit.findUnique({ where: { id } });
-    if (!deposit) return res.status(404).json({ error: "Deposit not found" });
-    if (deposit.status !== "pending")
-      return res.status(400).json({ error: "Deposit already processed" });
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Atomically reject only if still pending
+        const updated = await tx.deposit.updateMany({
+          where: {
+            id: depositId,
+            status: "PENDING"
+          },
+          data: {
+            status: "REJECTED"
+          }
+        });
 
-    await prisma.deposit.update({
-      where: { id },
-      data: {
-        status: "rejected",
-        statusReason: reason,
-        reviewedById: req.user.id,
-      },
-    });
+        if (updated.count === 0) {
+          throw new Error("DEPOSIT_ALREADY_PROCESSED");
+        }
 
-await logAudit({
-  actorId: req.user.id,
-  action: "DEPOSIT_REJECTED",
-  entityType: "deposit",
-  entityId: deposit.id,
-  meta: { reason }
-});
+        // 2. Fetch deposit for audit context
+        const deposit = await tx.deposit.findUnique({
+          where: { id: depositId }
+        });
 
-    res.json({ success: true, message: "Deposit rejected" });
-  } catch (err) {
-    console.error("ADMIN REJECT DEPOSIT ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
+        if (!deposit) {
+          throw new Error("DEPOSIT_NOT_FOUND");
+        }
+
+        // 3. Write audit log (no ledger write)
+        await tx.auditLog.create({
+          data: {
+            action: "DEPOSIT_REJECTED",
+            actorId: adminId,
+            entityType: "DEPOSIT",
+            entityId: deposit.id,
+            meta: {
+              amount: deposit.amount
+            }
+          }
+        });
+
+        return { success: true };
+      });
+
+      return res.json(result);
+    } catch (err) {
+      if (err.message === "DEPOSIT_ALREADY_PROCESSED") {
+        return res.status(409).json({ error: err.message });
+      }
+
+      if (err.message === "DEPOSIT_NOT_FOUND") {
+        return res.status(404).json({ error: "Deposit not found" });
+      }
+
+      console.error("DEPOSIT REJECTION ERROR:", err);
+      return res.status(500).json({ error: "Deposit rejection failed" });
+    }
   }
-});
+);
+
 
 export default router;
