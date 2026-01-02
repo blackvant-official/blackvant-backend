@@ -165,7 +165,7 @@ router.post(
         // 3. Write audit log (no ledger write)
         await tx.auditLog.create({
           data: {
-            action: "DEPOSIT_REJECTED",
+            action: "DEPOSIT_STATUS_UPDATED",
             actorId: adminId,
             entityType: "DEPOSIT",
             entityId: deposit.id,
