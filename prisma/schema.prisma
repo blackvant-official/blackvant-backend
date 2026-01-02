@@ -21,6 +21,8 @@ model User {
   email             String   @unique
   fullName          String?
   role              String   @default("client") // client | admin | superadmin
+  ledgerEntries     Ledger[]
+
 
   investmentBalance Decimal  @default(0.0) @db.Decimal(18, 4)
   profitBalance     Decimal  @default(0.0) @db.Decimal(18, 4)
@@ -217,4 +219,25 @@ model FileAttachment {
 enum AttachmentPurpose {
   DEPOSIT_PROOF
   SUPPORT_MESSAGE
+}
+
+// ------------------------------------------------------
+// LEDGER (Single Source of Financial Truth)
+// ------------------------------------------------------
+model Ledger {
+  id            String   @id @default(cuid())
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  amount        Decimal  @db.Decimal(18, 4)
+  direction     String   // credit | debit
+
+  referenceType String   // DEPOSIT | WITHDRAWAL | PROFIT
+  referenceId   String   // depositId / withdrawalId / payoutId
+
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([referenceType, referenceId])
 }

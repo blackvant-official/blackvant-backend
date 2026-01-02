@@ -11,7 +11,7 @@ const router = express.Router();
 router.get("/deposits/pending", requireAuth,  async (req, res) => {
   try {
     const deposits = await prisma.deposit.findMany({
-      where: { status: "pending" },
+      where: { status: "PENDING" },
       include: {
         user: {
           select: { email: true },
@@ -28,103 +28,90 @@ router.get("/deposits/pending", requireAuth,  async (req, res) => {
 });
 
 // POST /api/v1/admin/deposits/:id/approve
+
+
+/**
+ * APPROVE DEPOSIT (LEDGER-BASED)
+ * --------------------------------
+ * 1. Deposit must be PENDING
+ * 2. Ledger entry must NOT already exist
+ * 3. Create ONE ledger credit
+ * 4. Mark deposit as APPROVED
+ * 5. Idempotent by design
+ */
 router.post(
   "/deposits/:id/approve",
   requireAuth,
+  requireAdmin,
+  requireWritable,
   async (req, res) => {
-    const depositId = req.params.id;
-    const adminId = req.auth.userId;
+  const depositId = req.params.id;
 
-    try {
-      const result = await prisma.$transaction(async (tx) => {
-        // 1. Atomically claim the deposit
-        const updated = await tx.deposit.updateMany({
-          where: {
-            id: depositId,
-            status: "PENDING"
-          },
-          data: {
-            status: "APPROVED"
-          }
-        });
+  try {
+    // 1️⃣ Fetch deposit
+    const deposit = await prisma.deposit.findUnique({
+      where: { id: depositId },
+    });
 
-        if (updated.count === 0) {
-          throw new Error("DEPOSIT_ALREADY_PROCESSED");
-        }
-
-        // 2. Re-fetch approved deposit
-        const deposit = await tx.deposit.findUnique({
-          where: { id: depositId }
-        });
-
-        if (!deposit) {
-          throw new Error("DEPOSIT_NOT_FOUND");
-        }
-
-
-        // 2. Idempotency check (ledger)
-        const existingLedger = await tx.ledger.findFirst({
-          where: {
-            referenceType: "DEPOSIT",
-            referenceId: deposit.id
-          }
-        });
-
-        if (existingLedger) {
-          throw new Error("DEPOSIT_ALREADY_LEDGERED");
-        }
-
-        // 3. Create ledger entry
-        await tx.ledger.create({
-          data: {
-            userId: deposit.userId,
-            amount: deposit.amount,
-            direction: "IN",
-            referenceType: "DEPOSIT",
-            referenceId: deposit.id
-          }
-        });
-
-        // 4. Update deposit status
-        await tx.deposit.update({
-          where: { id: deposit.id },
-          data: { status: "APPROVED" }
-        });
-
-        // 5. Write audit log
-        await tx.auditLog.create({
-          data: {
-            action: "DEPOSIT_APPROVED",
-            actorId: adminId,
-            entityType: "DEPOSIT",
-            entityId: deposit.id,
-            meta: {
-              amount: deposit.amount
-            }
-          }
-        });
-
-        return { success: true };
-      });
-
-      return res.json(result);
-    } catch (err) {
-      if (
-        err.message === "DEPOSIT_ALREADY_PROCESSED" ||
-        err.message === "DEPOSIT_ALREADY_LEDGERED"
-      ) {
-        return res.status(409).json({ error: err.message });
-      }
-
-      if (err.message === "DEPOSIT_NOT_FOUND") {
-        return res.status(404).json({ error: "Deposit not found" });
-      }
-
-      console.error("DEPOSIT APPROVAL ERROR:", err);
-      return res.status(500).json({ error: "Deposit approval failed" });
+    if (!deposit) {
+      return res.status(404).json({ error: "Deposit not found" });
     }
+
+    // 2️⃣ Must be pending
+    if (deposit.status !== "PENDING") {
+      return res.status(409).json({
+        error: "Deposit already processed",
+      });
+    }
+
+    // 3️⃣ Check for existing ledger entry (idempotency guard)
+    const existingLedger = await prisma.ledger.findFirst({
+      where: {
+        referenceType: "DEPOSIT",
+        referenceId: deposit.id,
+      },
+    });
+
+    if (existingLedger) {
+      return res.status(409).json({
+        error: "Ledger entry already exists for this deposit",
+      });
+    }
+
+    // 4️⃣ Atomic transaction (ledger + status)
+    await prisma.$transaction([
+      prisma.ledger.create({
+        data: {
+          userId: deposit.userId,
+          amount: deposit.amount,
+          direction: "CREDIT",
+          referenceType: "DEPOSIT",
+          referenceId: deposit.id,
+        },
+      }),
+
+      prisma.deposit.update({
+        where: { id: deposit.id },
+        data: {
+          status: "APPROVED",
+          approvedAt: new Date(),
+        },
+      }),
+    ]);
+
+    return res.json({
+      success: true,
+      message: "Deposit approved and ledger credited",
+    });
+  } catch (error) {
+    console.error("Deposit approval error:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
-);
+});
+
+
 
 
 // POST /api/v1/admin/deposits/:id/reject
