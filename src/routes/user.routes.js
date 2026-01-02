@@ -39,11 +39,66 @@ router.get("/me", requireAuth, async (req, res) => {
       },
     });
 
-
-
   } catch (err) {
     console.error("GET /me Prisma error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/v1/me/balance
+// ---------------------------------------------
+// Ledger-based balance (READ-ONLY)
+// Source of truth: Ledger table only
+router.get("/me/balance", requireAuth, async (req, res) => {
+  try {
+    const { clerkUserId } = req.userContext;
+
+    if (!clerkUserId) {
+      return res.status(400).json({ error: "Invalid user context" });
+    }
+
+    // Resolve internal user ID
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Sum CREDIT ledger entries
+    const creditAgg = await prisma.ledger.aggregate({
+      where: {
+        userId: user.id,
+        direction: "CREDIT",
+      },
+      _sum: { amount: true },
+    });
+
+    // Sum DEBIT ledger entries
+    const debitAgg = await prisma.ledger.aggregate({
+      where: {
+        userId: user.id,
+        direction: "DEBIT",
+      },
+      _sum: { amount: true },
+    });
+
+    const totalCredits = creditAgg._sum.amount || 0;
+    const totalDebits = debitAgg._sum.amount || 0;
+
+    return res.json({
+      success: true,
+      balance: {
+        totalCredits,
+        totalDebits,
+        availableBalance: totalCredits - totalDebits,
+      },
+    });
+  } catch (err) {
+    console.error("LEDGER BALANCE ERROR:", err);
+    return res.status(500).json({ error: "Failed to compute balance" });
   }
 });
 
