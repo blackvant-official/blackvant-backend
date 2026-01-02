@@ -36,19 +36,30 @@ router.post(
 
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Lock deposit row
-        const deposit = await tx.deposit.findUnique({
-          where: { id: depositId },
-          lock: { mode: "for update" }
+        // 1. Atomically claim the deposit
+        const updated = await tx.deposit.updateMany({
+          where: {
+            id: depositId,
+            status: "PENDING"
+          },
+          data: {
+            status: "APPROVED"
+          }
         });
-
+        
+        if (updated.count === 0) {
+          throw new Error("DEPOSIT_ALREADY_PROCESSED");
+        }
+        
+        // 2. Re-fetch approved deposit
+        const deposit = await tx.deposit.findUnique({
+          where: { id: depositId }
+        });
+        
         if (!deposit) {
           throw new Error("DEPOSIT_NOT_FOUND");
         }
 
-        if (deposit.status !== "PENDING") {
-          throw new Error("DEPOSIT_ALREADY_PROCESSED");
-        }
 
         // 2. Idempotency check (ledger)
         const existingLedger = await tx.ledger.findFirst({
