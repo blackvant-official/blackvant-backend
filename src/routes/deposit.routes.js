@@ -65,7 +65,7 @@ router.post(
         method,
         txId: txId || null,
         proofKey,              // ✅ S3 key stored
-        status: "pending",
+        status: "PENDING",
       },
     });
 
