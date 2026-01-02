@@ -2,6 +2,7 @@ import { logAudit } from "../../services/audit.service.js";
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth, } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 
 const router = express.Router();
@@ -30,42 +31,96 @@ router.get("/withdrawals/pending", requireAuth, async (req, res) => {
 router.post(
   "/withdrawals/:id/approve",
   requireAuth,
-  requireWritable,
+  requireAdmin,
   async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { txId, note } = req.body;
+    const withdrawalId = req.params.id;
+    const adminId = req.auth.userId;
 
-    const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
-    if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
-    if (withdrawal.status !== "pending")
-      return res.status(400).json({ error: "Withdrawal already processed" });
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Atomically claim withdrawal (must be PENDING)
+        const updated = await tx.withdrawal.updateMany({
+          where: {
+            id: withdrawalId,
+            status: "PENDING"
+          },
+          data: {
+            status: "APPROVED"
+          }
+        });
 
-    await prisma.withdrawal.update({
-      where: { id },
-      data: {
-        status: "approved",
-        txId,
-        statusReason: note,
-        reviewedById: req.user.id,
-        approvedAt: new Date(),
-      },
-    });
+        if (updated.count === 0) {
+          throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
+        }
 
-await logAudit({
-  actorId: req.user.id,
-  action: "WITHDRAWAL_APPROVED",
-  entityType: "withdrawal",
-  entityId: withdrawal.id,
-  meta: { txId }
-});
+        // 2. Fetch withdrawal
+        const withdrawal = await tx.withdrawal.findUnique({
+          where: { id: withdrawalId }
+        });
 
-    res.json({ success: true, message: "Withdrawal approved" });
-  } catch (err) {
-    console.error("ADMIN APPROVE WITHDRAWAL ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
+        if (!withdrawal) {
+          throw new Error("WITHDRAWAL_NOT_FOUND");
+        }
+
+        // 3. Calculate balance from ledger
+        const aggregates = await tx.ledger.aggregate({
+          where: { userId: withdrawal.userId },
+          _sum: { amount: true }
+        });
+
+        const balance = Number(aggregates._sum.amount || 0);
+
+        if (balance < withdrawal.amount) {
+          throw new Error("INSUFFICIENT_BALANCE");
+        }
+
+        // 4. Create ledger OUT entry
+        await tx.ledger.create({
+          data: {
+            userId: withdrawal.userId,
+            amount: -withdrawal.amount,
+            direction: "OUT",
+            referenceType: "WITHDRAWAL",
+            referenceId: withdrawal.id
+          }
+        });
+
+        // 5. Audit log
+        await tx.auditLog.create({
+          data: {
+            action: "WITHDRAWAL_APPROVED",
+            actorId: adminId,
+            entityType: "WITHDRAWAL",
+            entityId: withdrawal.id,
+            meta: {
+              amount: withdrawal.amount
+            }
+          }
+        });
+
+        return { success: true };
+      });
+
+      return res.json(result);
+    } catch (err) {
+      if (err.message === "WITHDRAWAL_ALREADY_PROCESSED") {
+        return res.status(409).json({ error: err.message });
+      }
+
+      if (err.message === "INSUFFICIENT_BALANCE") {
+        return res.status(409).json({ error: err.message });
+      }
+
+      if (err.message === "WITHDRAWAL_NOT_FOUND") {
+        return res.status(404).json({ error: "Withdrawal not found" });
+      }
+
+      console.error("WITHDRAWAL APPROVAL ERROR:", err);
+      return res.status(500).json({ error: "Withdrawal approval failed" });
+    }
   }
-});
+);
+
 
 // POST /api/v1/admin/withdrawals/:id/reject
 router.post(
