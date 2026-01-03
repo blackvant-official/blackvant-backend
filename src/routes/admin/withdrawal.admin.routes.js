@@ -1,4 +1,3 @@
-import { logAudit } from "../../services/audit.service.js";
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth, } from "../../middleware/auth.js";
@@ -148,44 +147,68 @@ router.post(
 router.post(
   "/withdrawals/:id/reject",
   requireAuth,
+  requireAdmin,
   requireWritable,
   async (req, res) => {
-  try {
     const { id } = req.params;
     const { reason } = req.body;
+    const adminId = req.auth.userId;
 
-    const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
-    if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
-    if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending")
-      return res.status(400).json({ error: "Withdrawal already processed" });
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 1️⃣ Fetch withdrawal
+        const withdrawal = await tx.withdrawal.findUnique({
+          where: { id },
+        });
 
-    // refund the profitBalance immediately
-    await prisma.$transaction(async (tx) => {
-      await tx.withdrawal.update({
-        where: { id },
-        data: {
-          status: "rejected",
-          statusReason: reason,
-          reviewedById: req.user.id,
-        },
+        if (!withdrawal) {
+          throw new Error("WITHDRAWAL_NOT_FOUND");
+        }
+
+        // 2️⃣ Must be pending
+        if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending") {
+          throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
+        }
+
+        // 3️⃣ Update status → REJECTED
+        await tx.withdrawal.update({
+          where: { id },
+          data: {
+            status: "REJECTED",
+            statusReason: reason || null,
+            reviewedById: adminId,
+          },
+        });
+
+        // 4️⃣ Audit log (NO ledger write, NO balance mutation)
+        await tx.auditLog.create({
+          data: {
+            action: "WITHDRAWAL_REJECTED",
+            actorId: adminId,
+            entityType: "WITHDRAWAL",
+            entityId: withdrawal.id,
+            meta: { reason },
+          },
+        });
       });
 
-      await logAudit({
-  actorId: req.user.id,
-  action: "WITHDRAWAL_REJECTED",
-  entityType: "withdrawal",
-  entityId: withdrawal.id,
-  meta: { reason }
-});
+      return res.json({
+        success: true,
+        message: "Withdrawal rejected",
+      });
+    } catch (err) {
+      if (err.message === "WITHDRAWAL_ALREADY_PROCESSED") {
+        return res.status(409).json({ error: err.message });
+      }
+      if (err.message === "WITHDRAWAL_NOT_FOUND") {
+        return res.status(404).json({ error: "Withdrawal not found" });
+      }
 
-
-      
-
-    res.json({ success: true, message: "Withdrawal rejected and profit refunded" });
-  } catch (err) {
-    console.error("ADMIN REJECT WITHDRAWAL ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
+      console.error("ADMIN REJECT WITHDRAWAL ERROR:", err);
+      return res.status(500).json({ error: "Withdrawal rejection failed" });
+    }
   }
-});
+);
+
 
 export default router;
