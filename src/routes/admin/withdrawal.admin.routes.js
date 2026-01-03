@@ -10,7 +10,7 @@ const router = express.Router();
 router.get("/withdrawals/pending", requireAuth, async (req, res) => {
   try {
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { status: "PENDING" },
+      where: { status: { in: ["PENDING", "pending"] } },
       include: {
         user: {
           select: { email: true },
