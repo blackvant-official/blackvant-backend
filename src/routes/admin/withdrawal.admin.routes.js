@@ -45,6 +45,17 @@ router.post(
           where: { id: withdrawalId },
         });
 
+        // Resolve admin internal user ID (Clerk → User)
+        const adminUser = await tx.user.findUnique({
+          where: { clerkId: req.auth.userId },
+          select: { id: true }
+        });
+
+        if (!adminUser) {
+          throw new Error("ADMIN_USER_NOT_FOUND");
+        }
+
+
         if (!withdrawal) {
           throw new Error("WITHDRAWAL_NOT_FOUND");
         }
@@ -108,7 +119,7 @@ router.post(
           data: {
             status: "APPROVED",
             approvedAt: new Date(),
-            reviewedById: adminId,
+            reviewedById: adminUser.id,
           },
         });
 
@@ -162,6 +173,17 @@ router.post(
           where: { id },
         });
 
+        // Resolve admin internal user ID (Clerk → User)
+        const adminUser = await tx.user.findUnique({
+          where: { clerkId: req.auth.userId },
+          select: { id: true }
+        });
+
+        if (!adminUser) {
+          throw new Error("ADMIN_USER_NOT_FOUND");
+        }
+
+
         if (!withdrawal) {
           throw new Error("WITHDRAWAL_NOT_FOUND");
         }
@@ -177,7 +199,7 @@ router.post(
           data: {
             status: "REJECTED",
             statusReason: reason || null,
-            reviewedById: adminId,
+            reviewedById: adminUser.id,
           },
         });
 
@@ -204,6 +226,11 @@ router.post(
       if (err.message === "WITHDRAWAL_NOT_FOUND") {
         return res.status(404).json({ error: "Withdrawal not found" });
       }
+
+      if (err.message === "ADMIN_USER_NOT_FOUND") {
+        return res.status(403).json({ error: "Admin user not found" });
+      }
+
 
       console.error("ADMIN REJECT WITHDRAWAL ERROR:", err);
       return res.status(500).json({ error: "Withdrawal rejection failed" });
