@@ -11,7 +11,7 @@ const router = express.Router();
 router.get("/withdrawals/pending", requireAuth, async (req, res) => {
   try {
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { status: "pending" },
+      where: { status: "PENDING" },
       include: {
         user: {
           select: { email: true },
@@ -28,74 +28,99 @@ router.get("/withdrawals/pending", requireAuth, async (req, res) => {
 });
 
 // POST /api/v1/admin/withdrawals/:id/approve
+// POST /api/v1/admin/withdrawals/:id/approve
 router.post(
   "/withdrawals/:id/approve",
   requireAuth,
   requireAdmin,
+  requireWritable,
   async (req, res) => {
     const withdrawalId = req.params.id;
     const adminId = req.auth.userId;
 
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Atomically claim withdrawal (must be PENDING)
-        const updated = await tx.withdrawal.updateMany({
-          where: {
-            id: withdrawalId,
-            status: "PENDING"
-          },
-          data: {
-            status: "APPROVED"
-          }
-        });
-
-        if (updated.count === 0) {
-          throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
-        }
-
-        // 2. Fetch withdrawal
+        // 1) Fetch withdrawal
         const withdrawal = await tx.withdrawal.findUnique({
-          where: { id: withdrawalId }
+          where: { id: withdrawalId },
         });
 
         if (!withdrawal) {
           throw new Error("WITHDRAWAL_NOT_FOUND");
         }
 
-        // 3. Calculate balance from ledger
-        const aggregates = await tx.ledger.aggregate({
-          where: { userId: withdrawal.userId },
-          _sum: { amount: true }
+        // 2) Must be pending (normalize to uppercase)
+        if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending") {
+          throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
+        }
+
+        // 3) Idempotency guard: no existing ledger DEBIT for this withdrawal
+        const existingLedger = await tx.ledger.findFirst({
+          where: {
+            referenceType: "WITHDRAWAL",
+            referenceId: withdrawal.id,
+          },
         });
 
-        const balance = Number(aggregates._sum.amount || 0);
+        if (existingLedger) {
+          throw new Error("LEDGER_ALREADY_EXISTS");
+        }
 
-        if (balance < withdrawal.amount) {
+        // 4) Compute ledger balance correctly (CREDIT - DEBIT)
+        const creditAgg = await tx.ledger.aggregate({
+          where: {
+            userId: withdrawal.userId,
+            direction: "CREDIT",
+          },
+          _sum: { amount: true },
+        });
+
+        const debitAgg = await tx.ledger.aggregate({
+          where: {
+            userId: withdrawal.userId,
+            direction: "DEBIT",
+          },
+          _sum: { amount: true },
+        });
+
+        const totalCredits = creditAgg._sum.amount || new Prisma.Decimal(0);
+        const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
+        const availableBalance = totalCredits.minus(totalDebits);
+
+        if (availableBalance.lt(withdrawal.amount)) {
           throw new Error("INSUFFICIENT_BALANCE");
         }
 
-        // 4. Create ledger OUT entry
+        // 5) Write ONE ledger DEBIT (amount is POSITIVE)
         await tx.ledger.create({
           data: {
             userId: withdrawal.userId,
-            amount: -withdrawal.amount,
-            direction: "OUT",
+            amount: withdrawal.amount,
+            direction: "DEBIT",
             referenceType: "WITHDRAWAL",
-            referenceId: withdrawal.id
-          }
+            referenceId: withdrawal.id,
+          },
         });
 
-        // 5. Audit log
+        // 6) Update withdrawal status
+        await tx.withdrawal.update({
+          where: { id: withdrawal.id },
+          data: {
+            status: "APPROVED",
+            approvedAt: new Date(),
+            reviewedById: adminId,
+          },
+        });
+
+        // 7) Audit log
         await tx.auditLog.create({
           data: {
             action: "WITHDRAWAL_APPROVED",
             actorId: adminId,
             entityType: "WITHDRAWAL",
             entityId: withdrawal.id,
-            meta: {
-              amount: withdrawal.amount
-            }
-          }
+            meta: { amount: withdrawal.amount },
+          },
         });
 
         return { success: true };
@@ -103,18 +128,15 @@ router.post(
 
       return res.json(result);
     } catch (err) {
-      if (err.message === "WITHDRAWAL_ALREADY_PROCESSED") {
+      if (err.message === "WITHDRAWAL_ALREADY_PROCESSED" || err.message === "LEDGER_ALREADY_EXISTS") {
         return res.status(409).json({ error: err.message });
       }
-
       if (err.message === "INSUFFICIENT_BALANCE") {
-        return res.status(409).json({ error: err.message });
+        return res.status(409).json({ error: "INSUFFICIENT_BALANCE" });
       }
-
       if (err.message === "WITHDRAWAL_NOT_FOUND") {
         return res.status(404).json({ error: "Withdrawal not found" });
       }
-
       console.error("WITHDRAWAL APPROVAL ERROR:", err);
       return res.status(500).json({ error: "Withdrawal approval failed" });
     }
@@ -134,7 +156,7 @@ router.post(
 
     const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
     if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
-    if (withdrawal.status !== "pending")
+    if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending")
       return res.status(400).json({ error: "Withdrawal already processed" });
 
     // refund the profitBalance immediately
@@ -157,15 +179,7 @@ router.post(
 });
 
 
-      await tx.user.update({
-        where: { id: withdrawal.userId },
-        data: {
-          profitBalance: {
-            increment: withdrawal.amount,
-          },
-        },
-      });
-    });
+      
 
     res.json({ success: true, message: "Withdrawal rejected and profit refunded" });
   } catch (err) {
