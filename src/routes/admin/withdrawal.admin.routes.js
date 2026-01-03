@@ -7,6 +7,33 @@ import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
+// GET /api/v1/admin/withdrawals
+// ---------------------------------------------
+// READ-ONLY — Returns ALL withdrawals (any status)
+// Used by Admin Withdrawals page with filters
+router.get("/withdrawals", requireAuth, async (req, res) => {
+  try {
+    const withdrawals = await prisma.withdrawal.findMany({
+      include: {
+        user: {
+          select: { email: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json({
+      success: true,
+      withdrawals,
+    });
+  } catch (err) {
+    console.error("ADMIN ALL WITHDRAWALS ERROR:", err);
+    return res.status(500).json({
+      error: "Failed to fetch withdrawals",
+    });
+  }
+});
+
 // GET /api/v1/admin/withdrawals/pending
 router.get("/withdrawals/pending", requireAuth, async (req, res) => {
   try {
