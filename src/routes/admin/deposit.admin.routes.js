@@ -5,6 +5,14 @@ import { requireAuth,  } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 
+// ================================
+// STATUS NORMALIZATION (ADMIN DEPOSITS)
+// ================================
+const normalizeAdminDepositStatus = (status) => {
+  if (!status) return undefined;
+  return String(status).toUpperCase();
+};
+
 const router = express.Router();
 
 // GET /api/v1/admin/deposits
@@ -13,7 +21,13 @@ const router = express.Router();
 // Used by Admin Deposits page with filters
 router.get("/deposits", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const rawStatus = req.query.status;
+    const normalizedStatus = normalizeAdminDepositStatus(rawStatus);
+
     const deposits = await prisma.deposit.findMany({
+      where: {
+        ...(normalizedStatus && { status: normalizedStatus }),
+      },
       include: {
         user: {
           select: { email: true },
