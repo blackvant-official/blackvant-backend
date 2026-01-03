@@ -129,7 +129,7 @@ router.post(
         await tx.auditLog.create({
           data: {
             action: "WITHDRAWAL_APPROVED",
-            actorId: adminId,
+            actorId: adminUser.id,
             entityType: "WITHDRAWAL",
             entityId: withdrawal.id,
             meta: { amount: withdrawal.amount },
@@ -212,7 +212,7 @@ router.post(
         await tx.auditLog.create({
           data: {
             action: "WITHDRAWAL_REJECTED",
-            actorId: adminId,
+            actorId: adminUser.id,
             entityType: "WITHDRAWAL",
             entityId: withdrawal.id,
             meta: { reason },
