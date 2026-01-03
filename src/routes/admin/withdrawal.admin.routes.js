@@ -36,8 +36,7 @@ router.post(
   requireWritable,
   async (req, res) => {
     const withdrawalId = req.params.id;
-    const adminId = req.auth.userId;
-
+    
     try {
       const result = await prisma.$transaction(async (tx) => {
         // 1) Fetch withdrawal
@@ -114,6 +113,9 @@ router.post(
         });
 
         // 6) Update withdrawal status
+        console.log("ADMIN INTERNAL ID:", adminUser.id);
+        console.log("ADMIN CLERK ID:", req.auth.userId);
+
         await tx.withdrawal.update({
           where: { id: withdrawal.id },
           data: {
@@ -164,7 +166,7 @@ router.post(
   async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
-    const adminId = req.auth.userId;
+    
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -194,6 +196,9 @@ router.post(
         }
 
         // 3️⃣ Update status → REJECTED
+        console.log("ADMIN INTERNAL ID:", adminUser.id);
+        console.log("ADMIN CLERK ID:", req.auth.userId);
+
         await tx.withdrawal.update({
           where: { id },
           data: {
