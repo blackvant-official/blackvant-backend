@@ -54,25 +54,46 @@ router.post(
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-
-    if (user.profitBalance.lt(new Prisma.Decimal(amount.toString()))) {
-      return res.status(400).json({ error: "Insufficient profit balance" });
-    }
     
+    // -------------------------------
+// LEDGER-BASED WITHDRAWAL CHECK
+// -------------------------------
+
+// Sum CREDIT entries
+const creditAgg = await prisma.ledger.aggregate({
+  where: {
+    userId: user.id,
+    direction: "CREDIT",
+  },
+  _sum: { amount: true },
+});
+
+// Sum DEBIT entries
+const debitAgg = await prisma.ledger.aggregate({
+  where: {
+    userId: user.id,
+    direction: "DEBIT",
+  },
+  _sum: { amount: true },
+});
+
+const totalCredits = creditAgg._sum.amount || new Prisma.Decimal(0);
+const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
+
+const availableBalance = totalCredits.minus(totalDebits);
+const requestedAmount = new Prisma.Decimal(amount.toString());
+
+if (requestedAmount.gt(availableBalance)) {
+  return res.status(403).json({
+    error: "Insufficient available balance",
+  });
+}
+
     if (source === "capital") {
       return res.status(403).json({
         error: "Capital withdrawals are currently locked"
       });
     }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        profitBalance: {
-          decrement: new Prisma.Decimal(amount.toString()),
-        },
-      },
-    });
 
 
     const withdrawal = await prisma.withdrawal.create({
