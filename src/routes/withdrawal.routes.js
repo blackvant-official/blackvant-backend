@@ -4,12 +4,23 @@ import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
 
+// ================================
+// STATUS NORMALIZATION (WITHDRAWALS)
+// ================================
+const normalizeWithdrawalStatus = (status) => {
+  if (!status) return undefined;
+  return String(status).toUpperCase();
+};
+
 const router = express.Router();
 
 // GET /api/v1/me/withdrawals
 router.get("/me/withdrawals", requireAuth, async (req, res) => {
   try {
     const { clerkUserId } = req.userContext;
+    const rawStatus = req.query.status;
+    const normalizedStatus = normalizeWithdrawalStatus(rawStatus);
+
 
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId }
@@ -20,9 +31,13 @@ router.get("/me/withdrawals", requireAuth, async (req, res) => {
     }
 
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(normalizedStatus && { status: normalizedStatus }),
+      },
       orderBy: { createdAt: "desc" }
     });
+
 
     return res.json(withdrawals);
   } catch (err) {
@@ -104,7 +119,7 @@ if (requestedAmount.gt(availableBalance)) {
         source,
         method,
         targetAddress,
-        status: "pending",
+        status: "PENDING",
       },
     });
 
