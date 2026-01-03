@@ -7,6 +7,33 @@ import { requireWritable } from "../../middleware/readOnly.js";
 
 const router = express.Router();
 
+// GET /api/v1/admin/deposits
+// ---------------------------------------------
+// READ-ONLY — Returns ALL deposits (any status)
+// Used by Admin Deposits page with filters
+router.get("/deposits", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const deposits = await prisma.deposit.findMany({
+      include: {
+        user: {
+          select: { email: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json({
+      success: true,
+      deposits,
+    });
+  } catch (err) {
+    console.error("ADMIN ALL DEPOSITS ERROR:", err);
+    return res.status(500).json({
+      error: "Failed to fetch deposits",
+    });
+  }
+});
+
 // GET /api/v1/admin/deposits/pending
 router.get("/deposits/pending", requireAuth,  async (req, res) => {
   try {
