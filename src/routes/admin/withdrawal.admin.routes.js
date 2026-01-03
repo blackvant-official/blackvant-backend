@@ -3,6 +3,7 @@ import prisma from "../../utils/prisma.js";
 import { requireAuth, } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
