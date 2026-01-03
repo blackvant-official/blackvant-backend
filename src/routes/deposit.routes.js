@@ -4,12 +4,23 @@ import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
 
+// ================================
+// STATUS NORMALIZATION (DEPOSITS)
+// ================================
+const normalizeDepositStatus = (status) => {
+  if (!status) return undefined;
+  return String(status).toUpperCase();
+};
+
 const router = express.Router();
 
 // GET /api/v1/me/deposits
 router.get("/me/deposits", requireAuth, async (req, res) => {
   try {
     const { clerkUserId } = req.userContext;
+    const rawStatus = req.query.status;
+    const normalizedStatus = normalizeDepositStatus(rawStatus);
+
 
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId },
@@ -20,9 +31,13 @@ router.get("/me/deposits", requireAuth, async (req, res) => {
     }
 
     const deposits = await prisma.deposit.findMany({
-      where: { userId: user.id }, // ✅ FIX
+      where: {
+        userId: user.id,
+        ...(normalizedStatus && { status: normalizedStatus }),
+      },
       orderBy: { createdAt: "desc" },
     });
+
 
     return res.json(deposits);
   } catch (err) {
