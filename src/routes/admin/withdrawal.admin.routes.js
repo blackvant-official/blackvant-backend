@@ -5,6 +5,14 @@ import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 import { Prisma } from "@prisma/client";
 
+// ================================
+// STATUS NORMALIZATION (ADMIN WITHDRAWALS)
+// ================================
+const normalizeAdminWithdrawalStatus = (status) => {
+  if (!status) return undefined;
+  return String(status).toUpperCase();
+};
+
 const router = express.Router();
 
 // GET /api/v1/admin/withdrawals
@@ -13,14 +21,21 @@ const router = express.Router();
 // Used by Admin Withdrawals page with filters
 router.get("/withdrawals", requireAuth, async (req, res) => {
   try {
+    const rawStatus = req.query.status;
+    const normalizedStatus = normalizeAdminWithdrawalStatus(rawStatus);
+
     const withdrawals = await prisma.withdrawal.findMany({
+      where: {
+        ...(normalizedStatus && { status: normalizedStatus }),
+      },
       include: {
-        user: {
-          select: { email: true },
-        },
+    user: {
+      select: { email: true },
+    },
       },
       orderBy: { createdAt: "desc" },
     });
+
 
     return res.json({
       success: true,
@@ -38,7 +53,7 @@ router.get("/withdrawals", requireAuth, async (req, res) => {
 router.get("/withdrawals/pending", requireAuth, async (req, res) => {
   try {
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { status: { in: ["PENDING", "pending"] } },
+      where: { status: "PENDING" },
       include: {
         user: {
           select: { email: true },
