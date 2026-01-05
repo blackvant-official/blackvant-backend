@@ -222,16 +222,22 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       }
     
       // 3. Finalize distribution
+      // Compute final totals from persisted payouts (ledger-safe)
+      const totalDistributed = payouts.reduce(
+        (sum, p) => sum + Number(p.profitAmount),
+        0
+      );
+      
       await tx.profitDistribution.update({
         where: { id: distribution.id },
         data: {
           status: "DISTRIBUTED",
-          totalDistributed: calculation.totalDistributed,
+          totalDistributed,
           recipientsCount: payouts.length,
         },
       });
-    });
-    
+
+
     return res.json({
       success: true,
       message: "Profit distribution settled successfully.",
