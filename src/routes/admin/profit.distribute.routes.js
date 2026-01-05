@@ -67,3 +67,5 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
     });
   }
 });
+
+export default router;
