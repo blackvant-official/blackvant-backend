@@ -200,12 +200,44 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       });
     }
 
-    // ⛔ STOP HERE — do not write ledger yet
+    // STEP 7-B — Atomic ledger settlement (FINAL)
+    await prisma.$transaction(async (tx) => {
+      for (const payout of payouts) {
+        // 1. Create ledger CREDIT entry
+        const ledgerEntry = await tx.ledger.create({
+          data: {
+            userId: payout.userId,
+            amount: payout.profitAmount,
+            direction: "CREDIT",
+            referenceType: "PROFIT",
+            referenceId: payout.id,
+          },
+        });
+      
+        // 2. Link ledger entry to payout
+        await tx.profitPayout.update({
+          where: { id: payout.id },
+          data: { ledgerEntryId: ledgerEntry.id },
+        });
+      }
+    
+      // 3. Finalize distribution
+      await tx.profitDistribution.update({
+        where: { id: distribution.id },
+        data: {
+          status: "DISTRIBUTED",
+          totalDistributed: calculation.totalDistributed,
+          recipientsCount: payouts.length,
+        },
+      });
+    });
+    
     return res.json({
       success: true,
-      message: "Pre-settlement checks passed. Ready for ledger settlement.",
-      payoutsCount: payouts.length,
+      message: "Profit distribution settled successfully.",
+      ledgerCreditsCreated: payouts.length,
     });
+
 
 
 
