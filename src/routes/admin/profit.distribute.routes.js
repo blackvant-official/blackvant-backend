@@ -55,7 +55,15 @@ function calculateProfitDistribution(snapshot, distributionPercent) {
   let totalDistributed = 0;
 
   for (const user of snapshot.users) {
-    const rawProfit = user.investment * Number(distributionPercent);
+    const percent = Number(distributionPercent);
+
+    if (percent > 1) {
+      throw new Error(
+        `Invalid distributionPercent ${distributionPercent}. Must be fractional (e.g. 0.007 for 0.7%)`
+      );
+    }
+    
+    const rawProfit = user.investment * percent;
     const profit = Math.floor(rawProfit * 10000) / 10000;
 
     if (profit > 0) {
@@ -142,7 +150,7 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       snapshot,
       distribution.distributionPercent
     );
-    
+
     return res.json({
       success: true,
       message: "Profit calculated successfully (no writes executed).",
