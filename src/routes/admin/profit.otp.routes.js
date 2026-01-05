@@ -3,11 +3,73 @@ import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../../middleware/auth.js";
 import { generateOtp, hashOtp, getOtpExpiry } from "../../services/otp.service.js";
 import { sendEmail } from "../../services/email.service.js";
+import bcrypt from "bcrypt";
 
 const router = express.Router();
 const prisma = new PrismaClient();
 console.log("✅ admin profit OTP routes loaded");
 
+// Verify Route
+router.post("/profit/otp/verify", requireAuth, async (req, res) => {
+  try {
+    const adminUserId = req.userContext?.userId;
+    const { profitDistributionId, otp } = req.body;
+
+    if (!adminUserId) {
+      return res.status(401).json({ error: "Unauthorized admin" });
+    }
+
+    if (!profitDistributionId || !otp) {
+      return res.status(400).json({
+        error: "profitDistributionId and otp are required",
+      });
+    }
+
+    // Fetch latest valid OTP
+    const otpRecord = await prisma.adminProfitOtp.findFirst({
+      where: {
+        profitDistributionId,
+        adminUserId,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    const isValid = await bcrypt.compare(otp, otpRecord.otpHash);
+
+    if (!isValid) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // Mark OTP as used
+    await prisma.adminProfitOtp.update({
+      where: { id: otpRecord.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Mark distribution as VERIFIED
+    await prisma.profitDistribution.update({
+      where: { id: profitDistributionId },
+      data: { status: "VERIFIED" },
+    });
+
+    res.json({
+      success: true,
+      message: "OTP verified. Profit distribution unlocked.",
+    });
+  } catch (err) {
+    console.error("OTP VERIFY ERROR:", err);
+    res.status(500).json({ error: "Failed to verify OTP" });
+  }
+});
+// Request Route
 router.post("/profit/otp/request", requireAuth, async (req, res) => {
   try {
     const adminUserId = req.userContext?.userId;
