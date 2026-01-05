@@ -23,10 +23,6 @@ model User {
   role              String   @default("client") // client | admin | superadmin
   ledgerEntries     Ledger[]
 
-
-  investmentBalance Decimal  @default(0.0) @db.Decimal(18, 4)
-  profitBalance     Decimal  @default(0.0) @db.Decimal(18, 4)
-
   referralCode      String?  @unique
   referredById      String?
   referredBy        User?    @relation("UserReferrals", fields: [referredById], references: [id])
@@ -102,47 +98,52 @@ model Withdrawal {
 }
 
 // ------------------------------------------------------
-// PROFIT DISTRIBUTION (Daily)
+// PROFIT DISTRIBUTION 
 // ------------------------------------------------------
 model ProfitDistribution {
-  id                   String   @id @default(cuid())
-  refCode              String   @unique
+  id                  String   @id @default(cuid())
 
-  declaredDate         DateTime
-  declaredProfit       Decimal  @db.Decimal(18, 4)
-  distributionPercent  Decimal  @db.Decimal(6, 4)
+  distributionPercent Decimal  @db.Decimal(6, 4)
+  distributionDate    DateTime
+  note                String?
 
-  investmentPool       Decimal  @db.Decimal(18, 4)
-  totalDistributed     Decimal  @db.Decimal(18, 4)
-  recipientsCount      Int
+  totalDistributed    Decimal  @db.Decimal(18, 4)
+  recipientsCount     Int
 
-  status               String   @default("distributed") // only distributed supported
-  createdById          String
-  createdBy            User     @relation("ProfitCreatedBy", fields: [createdById], references: [id])
+  status              ProfitDistributionStatus @default(PENDING)
 
-  createdAt            DateTime @default(now())
-  lockedAt             DateTime?
+  createdById         String
+  createdBy           User     @relation("ProfitCreatedBy", fields: [createdById], references: [id])
 
-  payouts              ProfitPayout[]
+  payouts             ProfitPayout[]
+
+  createdAt           DateTime @default(now())
 }
+
 
 // ------------------------------------------------------
 // PROFIT PAYOUT (Each User in Distribution)
 // ------------------------------------------------------
 model ProfitPayout {
-  id                 String   @id @default(cuid())
+  id                       String   @id @default(cuid())
 
-  distributionId     String
-  distribution       ProfitDistribution @relation(fields: [distributionId], references: [id])
+  distributionId           String
+  distribution             ProfitDistribution @relation(fields: [distributionId], references: [id])
 
-  userId             String
-  user               User     @relation(fields: [userId], references: [id])
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id])
 
-  investmentSnapshot Decimal  @db.Decimal(18, 4)
-  shareAmount        Decimal  @db.Decimal(18, 4)
+  activeInvestmentSnapshot Decimal  @db.Decimal(18, 4)
+  profitAmount             Decimal  @db.Decimal(18, 4)
 
-  createdAt          DateTime @default(now())
+  ledgerEntryId            String?   // references Ledger.id (no Prisma relation)
+
+
+  createdAt                DateTime @default(now())
+
+  @@unique([distributionId, userId])
 }
+
 
 // ------------------------------------------------------
 // AUDIT LOG
@@ -240,4 +241,30 @@ model Ledger {
 
   @@index([userId])
   @@index([referenceType, referenceId])
+}
+
+enum ProfitDistributionStatus {
+  PENDING
+  VERIFIED
+  DISTRIBUTED
+}
+
+// ------------------------------------------------------
+// Admin OTP model
+// ------------------------------------------------------
+model AdminProfitOtp {
+  id                String   @id @default(cuid())
+
+  profitDistributionId String   // references ProfitDistribution.id (no Prisma relation)
+  adminUserId          String   // references User.id (no Prisma relation)
+
+
+  otpHash           String
+  expiresAt         DateTime
+  usedAt            DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([profitDistributionId])
+  @@index([adminUserId])
 }
