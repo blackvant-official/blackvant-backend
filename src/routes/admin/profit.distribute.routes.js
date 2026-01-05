@@ -160,7 +160,7 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
 
     // STEP 6 — Create ProfitPayout records (NO LEDGER WRITES)
     const createdPayouts = [];
-      
+
     for (const payout of calculation.payouts) {
       const record = await prisma.profitPayout.create({
         data: {
@@ -173,18 +173,47 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
     
       createdPayouts.push(record);
     }
+
+    // STEP 7-A — Pre-settlement validation (NO LEDGER WRITES)
+
+    // 1. Reload payouts to ensure consistency
+    const payouts = await prisma.profitPayout.findMany({
+      where: { distributionId: distribution.id },
+    });
     
+    // 2. Ensure payouts exist
+    if (payouts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No profit payouts found for settlement",
+      });
+    }
+    
+    // 3. Ensure no payout already linked to a ledger entry
+    const alreadySettled = payouts.some(p => p.ledgerEntryId !== null);
+    
+    if (alreadySettled) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more payouts already settled in ledger",
+      });
+    }
+    
+    // 4. Ensure distribution is still VERIFIED
+    if (distribution.status !== "VERIFIED") {
+      return res.status(400).json({
+        success: false,
+        message: "Distribution must be VERIFIED before ledger settlement",
+      });
+    }
+    
+    // ⛔ STOP HERE — do not write ledger yet
     return res.json({
       success: true,
-      message: "Profit payouts created successfully (ledger not yet updated).",
-      summary: {
-        distributionId: distribution.id,
-        totalInvestment: snapshot.totalInvestment,
-        totalDistributed: calculation.totalDistributed,
-        recipientsCount: calculation.recipientsCount,
-      },
-      payoutsCreated: createdPayouts.length,
+      message: "Pre-settlement checks passed. Ready for ledger settlement.",
+      payoutsCount: payouts.length,
     });
+
 
 
 
