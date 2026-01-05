@@ -7,7 +7,7 @@ import { sendEmail } from "../../services/email.service.js";
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.post("/admin/profit/otp/request", requireAuth, async (req, res) => {
+router.post("/profit/otp/request", requireAuth, async (req, res) => {
   try {
     const adminUserId = req.userContext?.userId;
     const adminEmail = req.userContext?.email;
