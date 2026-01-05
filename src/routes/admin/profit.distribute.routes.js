@@ -158,17 +158,34 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       distribution.distributionPercent
     );
 
+    // STEP 6 — Create ProfitPayout records (NO LEDGER WRITES)
+    const createdPayouts = [];
+      
+    for (const payout of calculation.payouts) {
+      const record = await prisma.profitPayout.create({
+        data: {
+          distributionId: distribution.id,
+          userId: payout.userId,
+          activeInvestmentSnapshot: payout.investmentSnapshot,
+          profitAmount: payout.profitAmount,
+        },
+      });
+    
+      createdPayouts.push(record);
+    }
+    
     return res.json({
       success: true,
-      message: "Profit calculated successfully (no writes executed).",
+      message: "Profit payouts created successfully (ledger not yet updated).",
       summary: {
-        distributionPercent: distribution.distributionPercent,
+        distributionId: distribution.id,
         totalInvestment: snapshot.totalInvestment,
         totalDistributed: calculation.totalDistributed,
         recipientsCount: calculation.recipientsCount,
       },
-      payouts: calculation.payouts,
+      payoutsCreated: createdPayouts.length,
     });
+
 
 
 
