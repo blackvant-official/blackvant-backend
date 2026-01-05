@@ -76,6 +76,7 @@ import adminTransactionsRoutes from "./routes/admin/transactions.admin.routes.js
 import auditAdminRoutes from "./routes/admin/audit.admin.routes.js";
 import ledgerAdminRoutes from "./routes/admin/ledger.admin.routes.js";
 import adminEmailTestRoutes from "./routes/admin/email.test.routes.js";
+import adminProfitOtpRoutes from "./routes/admin/profit.otp.routes.js";
 
 
 app.use("/api/v1", userRoutes);
@@ -93,6 +94,7 @@ app.use("/api/v1/admin", adminTransactionsRoutes);
 app.use("/api/v1/admin", auditAdminRoutes);
 app.use("/api/v1/admin/ledger", ledgerAdminRoutes);
 app.use("/api/v1/admin", adminEmailTestRoutes);
+app.use("/api/v1/admin", adminProfitOtpRoutes);
 
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);

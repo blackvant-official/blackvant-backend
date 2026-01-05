@@ -4,7 +4,7 @@ import { sendEmail } from "../../services/email.service.js";
 
 const router = express.Router();
 
-router.get("/admin/email/test", requireAuth, async (req, res) => {
+router.post("/admin/email/test", requireAuth, async (req, res) => {
   try {
     const email = req.userContext?.email;
 
