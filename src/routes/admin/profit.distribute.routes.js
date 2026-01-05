@@ -227,7 +227,7 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
         (sum, p) => sum + Number(p.profitAmount),
         0
       );
-      
+
       await tx.profitDistribution.update({
         where: { id: distribution.id },
         data: {
@@ -236,17 +236,13 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
           recipientsCount: payouts.length,
         },
       });
-
+    });
 
     return res.json({
       success: true,
       message: "Profit distribution settled successfully.",
       ledgerCreditsCreated: payouts.length,
     });
-
-
-
-
 
 
   } catch (err) {
@@ -258,3 +254,4 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
 });
 
 export default router;
+
