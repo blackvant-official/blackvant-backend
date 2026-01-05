@@ -18,13 +18,10 @@ const allowedOrigins = [
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow server-to-server & curl
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
       return callback(new Error("CORS not allowed"), false);
     },
     credentials: true,
@@ -33,9 +30,14 @@ app.use(
   })
 );
 
+/* --------------------------------------------------
+   MIDDLEWARE (MOVE THIS UP)
+-------------------------------------------------- */
+app.use(express.json());
 
-// 🔴 IMPORTANT: Express v5 DOES NOT allow app.options("*")
-// So we handle OPTIONS like this:
+/* --------------------------------------------------
+   OPTIONS HANDLER (AFTER json)
+-------------------------------------------------- */
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
@@ -45,10 +47,6 @@ app.use((req, res, next) => {
 
 app.use("/uploads", express.static("uploads"));
 
-/* --------------------------------------------------
-   MIDDLEWARE
--------------------------------------------------- */
-app.use(express.json());
 
 /* --------------------------------------------------
    HEALTH CHECK
