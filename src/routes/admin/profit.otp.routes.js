@@ -6,6 +6,7 @@ import { sendEmail } from "../../services/email.service.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
+console.log("✅ admin profit OTP routes loaded");
 
 router.post("/profit/otp/request", requireAuth, async (req, res) => {
   try {
