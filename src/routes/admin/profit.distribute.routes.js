@@ -135,11 +135,11 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
     const existingPayouts = await prisma.profitPayout.findMany({
       where: { distributionId: profitDistributionId },
     });
-    
+
     // 🔒 PHASE GATE
     if (existingPayouts.length === 0) {
       // ===== Phase B-4 Step 6 (create payouts) =====
-      
+
       const snapshot = await getActiveInvestmentSnapshot(prisma);
     
       if (snapshot.recipientsCount === 0) {
@@ -166,39 +166,6 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       }
     
     } // else → payouts already exist, move to Step 7
-
-    
-    // STEP 4 — Active Investment Snapshot (Ledger-based, read-only)
-    const snapshot = await getActiveInvestmentSnapshot(prisma);
-
-    if (snapshot.recipientsCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No active investments found for distribution",
-      });
-    }
-
-    // STEP 5 — Profit calculation (read-only)
-    const calculation = calculateProfitDistribution(
-      snapshot,
-      distribution.distributionPercent
-    );
-
-    // STEP 6 — Create ProfitPayout records (NO LEDGER WRITES)
-    const createdPayouts = [];
-
-    for (const payout of calculation.payouts) {
-      const record = await prisma.profitPayout.create({
-        data: {
-          distributionId: distribution.id,
-          userId: payout.userId,
-          activeInvestmentSnapshot: payout.investmentSnapshot,
-          profitAmount: payout.profitAmount,
-        },
-      });
-    
-      createdPayouts.push(record);
-    }
 
     // STEP 7-A — Pre-settlement validation (NO LEDGER WRITES)
 
