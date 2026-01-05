@@ -50,6 +50,31 @@ async function getActiveInvestmentSnapshot(prisma) {
   };
 }
 
+function calculateProfitDistribution(snapshot, distributionPercent) {
+  const results = [];
+  let totalDistributed = 0;
+
+  for (const user of snapshot.users) {
+    const rawProfit = user.investment * Number(distributionPercent);
+    const profit = Math.floor(rawProfit * 10000) / 10000;
+
+    if (profit > 0) {
+      results.push({
+        userId: user.userId,
+        investmentSnapshot: user.investment,
+        profitAmount: profit,
+      });
+      totalDistributed += profit;
+    }
+  }
+
+  return {
+    payouts: results,
+    totalDistributed,
+    recipientsCount: results.length,
+  };
+}
+
 /**
  * POST /api/v1/admin/profit/distribute
  * Phase B-4 — Profit Distribution (Ledger CREDIT)
@@ -112,14 +137,24 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       });
     }
 
+    // STEP 5 — Profit calculation (read-only)
+    const calculation = calculateProfitDistribution(
+      snapshot,
+      distribution.distributionPercent
+    );
+    
     return res.json({
       success: true,
-      message: "Distribution guards passed. Snapshot computed.",
-      snapshot: {
+      message: "Profit calculated successfully (no writes executed).",
+      summary: {
+        distributionPercent: distribution.distributionPercent,
         totalInvestment: snapshot.totalInvestment,
-        recipientsCount: snapshot.recipientsCount,
+        totalDistributed: calculation.totalDistributed,
+        recipientsCount: calculation.recipientsCount,
       },
+      payouts: calculation.payouts,
     });
+
 
 
   } catch (err) {
