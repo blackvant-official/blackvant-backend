@@ -56,10 +56,67 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       });
     }
 
-    return res.json({
-      success: true,
-      message: "Distribution guards passed. Ready to execute.",
-    });
+        // STEP 4 — Snapshot active investments (READ-ONLY)
+        const distributionDate = distribution.distributionDate;
+      
+        const investmentRows = await prisma.ledger.groupBy({
+          by: ["userId"],
+          where: {
+            referenceType: {
+              in: ["DEPOSIT", "WITHDRAWAL"],
+            },
+            createdAt: {
+              lte: distributionDate,
+            },
+          },
+          _sum: {
+            amount: true,
+          },
+          _min: {
+            direction: true,
+          },
+        });
+      
+        // Build per-user active investment map
+        const snapshots = [];
+      
+        for (const row of investmentRows) {
+          const credits = await prisma.ledger.aggregate({
+            where: {
+              userId: row.userId,
+              referenceType: "DEPOSIT",
+              createdAt: { lte: distributionDate },
+            },
+            _sum: { amount: true },
+          });
+        
+          const debits = await prisma.ledger.aggregate({
+            where: {
+              userId: row.userId,
+              referenceType: "WITHDRAWAL",
+              createdAt: { lte: distributionDate },
+            },
+            _sum: { amount: true },
+          });
+        
+          const creditAmount = credits._sum.amount || 0;
+          const debitAmount = debits._sum.amount || 0;
+          const activeInvestment = creditAmount - debitAmount;
+        
+          if (activeInvestment > 0) {
+            snapshots.push({
+              userId: row.userId,
+              activeInvestment,
+            });
+          }
+        }
+      
+        return res.json({
+          success: true,
+          snapshotCount: snapshots.length,
+          snapshots,
+        });
+
   } catch (err) {
     console.error("PROFIT DISTRIBUTE GUARD ERROR:", err);
     return res.status(500).json({
