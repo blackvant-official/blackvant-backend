@@ -4,6 +4,52 @@ import { requireAuth } from "../../middleware/auth.js";
 
 const router = express.Router();
 
+async function getActiveInvestmentSnapshot(prisma) {
+  const ledgerEntries = await prisma.ledger.findMany({
+    where: {
+      referenceType: {
+        in: ["DEPOSIT", "WITHDRAWAL"],
+      },
+    },
+    select: {
+      userId: true,
+      amount: true,
+      direction: true,
+    },
+  });
+
+  const perUser = new Map();
+
+  for (const entry of ledgerEntries) {
+    const prev = perUser.get(entry.userId) || 0;
+    const delta =
+      entry.direction === "CREDIT"
+        ? Number(entry.amount)
+        : -Number(entry.amount);
+
+    perUser.set(entry.userId, prev + delta);
+  }
+
+  const activeUsers = [];
+  let totalInvestment = 0;
+
+  for (const [userId, amount] of perUser.entries()) {
+    if (amount > 0) {
+      activeUsers.push({
+        userId,
+        investment: amount,
+      });
+      totalInvestment += amount;
+    }
+  }
+
+  return {
+    users: activeUsers,
+    totalInvestment,
+    recipientsCount: activeUsers.length,
+  };
+}
+
 /**
  * POST /api/v1/admin/profit/distribute
  * Phase B-4 — Profit Distribution (Ledger CREDIT)
@@ -55,67 +101,26 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
         error: "Profit payouts already exist for this distribution",
       });
     }
+    
+    // STEP 4 — Active Investment Snapshot (Ledger-based, read-only)
+    const snapshot = await getActiveInvestmentSnapshot(prisma);
 
-        // STEP 4 — Snapshot active investments (READ-ONLY)
-        const distributionDate = distribution.distributionDate;
-      
-        const investmentRows = await prisma.ledger.groupBy({
-          by: ["userId"],
-          where: {
-            referenceType: {
-              in: ["DEPOSIT", "WITHDRAWAL"],
-            },
-            createdAt: {
-              lte: distributionDate,
-            },
-          },
-          _sum: {
-            amount: true,
-          },
-          _min: {
-            direction: true,
-          },
-        });
-      
-        // Build per-user active investment map
-        const snapshots = [];
-      
-        for (const row of investmentRows) {
-          const credits = await prisma.ledger.aggregate({
-            where: {
-              userId: row.userId,
-              referenceType: "DEPOSIT",
-              createdAt: { lte: distributionDate },
-            },
-            _sum: { amount: true },
-          });
-        
-          const debits = await prisma.ledger.aggregate({
-            where: {
-              userId: row.userId,
-              referenceType: "WITHDRAWAL",
-              createdAt: { lte: distributionDate },
-            },
-            _sum: { amount: true },
-          });
-        
-          const creditAmount = credits._sum.amount || 0;
-          const debitAmount = debits._sum.amount || 0;
-          const activeInvestment = creditAmount - debitAmount;
-        
-          if (activeInvestment > 0) {
-            snapshots.push({
-              userId: row.userId,
-              activeInvestment,
-            });
-          }
-        }
-      
-        return res.json({
-          success: true,
-          snapshotCount: snapshots.length,
-          snapshots,
-        });
+    if (snapshot.recipientsCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No active investments found for distribution",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Distribution guards passed. Snapshot computed.",
+      snapshot: {
+        totalInvestment: snapshot.totalInvestment,
+        recipientsCount: snapshot.recipientsCount,
+      },
+    });
+
 
   } catch (err) {
     console.error("PROFIT DISTRIBUTE GUARD ERROR:", err);
