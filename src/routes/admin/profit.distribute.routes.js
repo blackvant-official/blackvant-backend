@@ -132,15 +132,41 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
       });
     }
 
-    const existingPayouts = await prisma.profitPayout.count({
+    const existingPayouts = await prisma.profitPayout.findMany({
       where: { distributionId: profitDistributionId },
     });
+    
+    // 🔒 PHASE GATE
+    if (existingPayouts.length === 0) {
+      // ===== Phase B-4 Step 6 (create payouts) =====
+      
+      const snapshot = await getActiveInvestmentSnapshot(prisma);
+    
+      if (snapshot.recipientsCount === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No active investments found for distribution",
+        });
+      }
+    
+      const calculation = calculateProfitDistribution(
+        snapshot,
+        distribution.distributionPercent
+      );
+    
+      for (const payout of calculation.payouts) {
+        await prisma.profitPayout.create({
+          data: {
+            distributionId: distribution.id,
+            userId: payout.userId,
+            activeInvestmentSnapshot: payout.investmentSnapshot,
+            profitAmount: payout.profitAmount,
+          },
+        });
+      }
+    
+    } // else → payouts already exist, move to Step 7
 
-    if (existingPayouts > 0) {
-      return res.status(400).json({
-        error: "Profit payouts already exist for this distribution",
-      });
-    }
     
     // STEP 4 — Active Investment Snapshot (Ledger-based, read-only)
     const snapshot = await getActiveInvestmentSnapshot(prisma);
@@ -180,7 +206,7 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
     const payouts = await prisma.profitPayout.findMany({
       where: { distributionId: distribution.id },
     });
-    
+
     // 2. Ensure payouts exist
     if (payouts.length === 0) {
       return res.status(400).json({
@@ -188,17 +214,17 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
         message: "No profit payouts found for settlement",
       });
     }
-    
+
     // 3. Ensure no payout already linked to a ledger entry
     const alreadySettled = payouts.some(p => p.ledgerEntryId !== null);
-    
+
     if (alreadySettled) {
       return res.status(400).json({
         success: false,
         message: "One or more payouts already settled in ledger",
       });
     }
-    
+
     // 4. Ensure distribution is still VERIFIED
     if (distribution.status !== "VERIFIED") {
       return res.status(400).json({
@@ -206,7 +232,7 @@ router.post("/profit/distribute", requireAuth, async (req, res) => {
         message: "Distribution must be VERIFIED before ledger settlement",
       });
     }
-    
+
     // ⛔ STOP HERE — do not write ledger yet
     return res.json({
       success: true,
