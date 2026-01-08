@@ -8,7 +8,11 @@ const router = express.Router();
  * CREATE profit distribution (PENDING)
  * POST /api/v1/admin/profit/distributions
  */
-router.post("/profit/distributions", requireAdmin, async (req, res) => {
+router.post(
+  "/profit/distributions",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
   try {
     const { distributionPercent } = req.body;
 
@@ -38,7 +42,11 @@ router.post("/profit/distributions", requireAdmin, async (req, res) => {
  * LIST profit distributions
  * GET /api/v1/admin/profit/distributions
  */
-router.get("/profit/distributions", requireAdmin, async (req, res) => {
+router.get(
+  "/profit/distributions",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
   try {
     const rows = await prisma.profitDistribution.findMany({
       orderBy: { createdAt: "desc" },
