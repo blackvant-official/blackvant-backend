@@ -1,29 +1,28 @@
-import { clerkClient } from "@clerk/clerk-sdk-node";
+import prisma from "../utils/prisma.js";
 
-/**
- * Server-side admin verification
- * Source of truth: Clerk publicMetadata.role
- */
 export async function requireAdmin(req, res, next) {
   try {
-    // Clerk userId must already be set by requireAuth
-    const userId = req.auth?.userId;
+    const clerkUserId = req.auth?.userId;
 
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthenticated" });
+    if (!clerkUserId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const user = await clerkClient.users.getUser(userId);
-    const role = user.publicMetadata?.role;
+    const admin = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId },
+      select: { id: true, role: true },
+    });
 
-    if (role !== "super_admin") {
-      return res.status(403).json({ error: "Admin access denied" });
+    if (!admin || admin.role !== "ADMIN") {
+      return res.status(403).json({ error: "Admin access required" });
     }
 
-    // Authorized
+    // OPTIONAL but recommended
+    req.admin = admin;
+
     next();
   } catch (err) {
     console.error("REQUIRE ADMIN ERROR:", err);
-    return res.status(500).json({ error: "Admin verification failed" });
+    return res.status(500).json({ error: "Admin validation failed" });
   }
 }
