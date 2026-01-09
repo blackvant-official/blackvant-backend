@@ -12,7 +12,7 @@ console.log("✅ admin profit OTP routes loaded");
 // Verify Route
 router.post("/profit/otp/verify", requireAuth, async (req, res) => {
   try {
-    const adminUserId = req.userContext?.userId;
+    const adminUserId = req.auth?.userId;
     const { profitDistributionId, otp } = req.body;
 
     if (!adminUserId) {
@@ -72,7 +72,7 @@ router.post("/profit/otp/verify", requireAuth, async (req, res) => {
 // Request Route
 router.post("/profit/otp/request", requireAuth, async (req, res) => {
   try {
-    const adminUserId = req.userContext?.userId;
+    const adminUserId = req.auth?.userId;
     const adminEmail = req.userContext?.email;
     const { profitDistributionId } = req.body;
 

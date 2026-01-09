@@ -61,11 +61,11 @@ function calculateProfitDistribution(snapshot, distributionPercent) {
     if (isNaN(percent) || percent <= 0 || percent > 5) {
       throw new Error(`Invalid distributionPercent ${distributionPercent}`);
     }
-    
+
     const normalized = percent / 100; // normalize ONCE
 
     
-    const rawProfit = user.investment * percent;
+    const rawProfit = user.investment * normalized;
 
     const profit = Math.floor(rawProfit * 10000) / 10000;
 
@@ -93,7 +93,7 @@ function calculateProfitDistribution(snapshot, distributionPercent) {
  */
 router.post("/profit/distribute", requireAuth, async (req, res) => {
   try {
-    const adminUserId = req.userContext?.userId;
+    const adminUserId = req.auth?.userId;
     const { profitDistributionId } = req.body;
 
     if (!adminUserId) {

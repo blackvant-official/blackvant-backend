@@ -104,7 +104,7 @@ model ProfitDistribution {
   id                  String   @id @default(cuid())
 
   distributionPercent Decimal  @db.Decimal(6, 4)
-  distributionDate    DateTime
+  distributionDate    DateTime @default(now())
   note                String?
 
   totalDistributed    Decimal  @db.Decimal(18, 4)

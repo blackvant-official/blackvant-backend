@@ -21,13 +21,24 @@ router.post(
       return res.status(400).json({ error: "Invalid distribution percent" });
     }
     
+    const admin = await prisma.user.findUnique({
+      where: { clerkId: req.auth.userId },
+      select: { id: true }
+    });
+    
+    if (!admin) {
+      return res.status(403).json({ error: "Admin user not found" });
+    }
+
     const created = await prisma.profitDistribution.create({
       data: {
         distributionPercent: Number(distributionPercent),
         status: "PENDING",
-        createdById: req.auth.userId,
+        distributionDate: new Date(), // ✅ REQUIRED
+        createdById: admin.id,
       },
     });
+
 
     res.json({
       success: true,
