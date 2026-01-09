@@ -25,7 +25,7 @@ router.post(
       data: {
         distributionPercent: Number(distributionPercent),
         status: "PENDING",
-        createdById: req.user.id,
+        createdById: req.auth.userId,
       },
     });
 

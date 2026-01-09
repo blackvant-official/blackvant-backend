@@ -55,19 +55,15 @@ function calculateProfitDistribution(snapshot, distributionPercent) {
   let totalDistributed = 0;
 
   for (const user of snapshot.users) {
-    let percent = Number(distributionPercent);
+    const percent = Number(distributionPercent);
 
-    // 🔒 Normalize percent (human-friendly → fractional)
-    if (percent >= 0.1) {
-      percent = percent / 100;
+    // Admin input MUST be human percent (0 < x ≤ 5)
+    if (isNaN(percent) || percent <= 0 || percent > 5) {
+      throw new Error(`Invalid distributionPercent ${distributionPercent}`);
     }
     
-    // 🔒 Final safety check
-    if (percent <= 0 || percent >= 0.1) {
-      throw new Error(
-        `Invalid distributionPercent ${distributionPercent}. Normalized value must be between 0 and 0.1`
-      );
-    }
+    const normalized = percent / 100; // normalize ONCE
+
     
     const rawProfit = user.investment * percent;
 
