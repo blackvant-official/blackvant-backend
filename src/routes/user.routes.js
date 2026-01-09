@@ -1,7 +1,10 @@
 import express from "express";
 import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-
+import {
+  getDashboardSummary,
+  getDashboardChart
+} from "../services/dashboard.service.js";
 const router = express.Router();
 
 router.get("/me", requireAuth, async (req, res) => {
@@ -102,4 +105,29 @@ router.get("/me/balance", requireAuth, async (req, res) => {
   }
 });
 
+// DASHBOARD SUMMARY
+router.get("/me/dashboard/summary", requireAuth, async (req, res) => {
+  try {
+    const data = await getDashboardSummary(req.userContext.clerkUserId);
+    res.json(data);
+  } catch (err) {
+    console.error("DASHBOARD SUMMARY ERROR:", err);
+    res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+// DASHBOARD CHART
+router.get("/me/dashboard/chart", requireAuth, async (req, res) => {
+  try {
+    const range = Number(req.query.range?.replace("d", "")) || 30;
+    const data = await getDashboardChart(
+      req.userContext.clerkUserId,
+      range
+    );
+    res.json(data);
+  } catch (err) {
+    console.error("DASHBOARD CHART ERROR:", err);
+    res.status(500).json({ error: "Failed to load chart" });
+  }
+});
 export default router;
