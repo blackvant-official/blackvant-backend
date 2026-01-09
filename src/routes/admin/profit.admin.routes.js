@@ -1,5 +1,6 @@
 import express from "express";
 import prisma from "../../utils/prisma.js";
+import { Prisma } from "@prisma/client";
 import { requireAuth } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 
@@ -32,12 +33,18 @@ router.post(
 
     const created = await prisma.profitDistribution.create({
       data: {
-        distributionPercent: Number(distributionPercent),
+        distributionPercent,
         status: "PENDING",
-        distributionDate: new Date(), // ✅ REQUIRED
+        distributionDate: new Date(),
+      
+        // ✅ REQUIRED BY SCHEMA
+        totalDistributed: new Prisma.Decimal(0),
+        recipientsCount: 0,
+      
         createdById: admin.id,
       },
     });
+
 
 
     res.json({
