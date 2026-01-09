@@ -20,10 +20,10 @@ router.post(
     if (!distributionPercent || Number(distributionPercent) <= 0) {
       return res.status(400).json({ error: "Invalid distribution percent" });
     }
-
+    
     const created = await prisma.profitDistribution.create({
       data: {
-        distributionPercent: Number(distributionPercent) / 100,
+        distributionPercent: Number(distributionPercent),
         status: "PENDING",
         createdById: req.user.id,
       },
