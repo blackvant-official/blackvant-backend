@@ -103,20 +103,19 @@ export async function getDashboardChart(clerkUserId, days = 30) {
   const start = new Date(today);
   start.setUTCDate(start.getUTCDate() - days);
 
-  // 1️⃣ Opening balance BEFORE range
+  // 1️⃣ Opening balance before range
   const opening = await prisma.ledger.aggregate({
     where: {
       userId,
       createdAt: { lt: start }
     },
-    _sum: {
-      amount: true
-    }
+    _sum: { amount: true }
   });
 
   let runningBalance = Number(opening._sum.amount || 0);
+  let cumulativeProfit = 0;
 
-  // 2️⃣ Ledger entries INSIDE range
+  // 2️⃣ Ledger entries inside range
   const entries = await prisma.ledger.findMany({
     where: {
       userId,
@@ -129,6 +128,7 @@ export async function getDashboardChart(clerkUserId, days = 30) {
     select: {
       amount: true,
       direction: true,
+      referenceType: true,
       createdAt: true
     }
   });
@@ -141,23 +141,37 @@ export async function getDashboardChart(clerkUserId, days = 30) {
     byDay[day].push(e);
   }
 
-  // 4️⃣ Build daily equity curve
+  // 4️⃣ Build daily metrics
   const result = [];
+
   for (let i = 0; i <= days; i++) {
     const d = new Date(start);
     d.setUTCDate(start.getUTCDate() + i);
     const key = d.toISOString().slice(0, 10);
 
+    let dailyProfit = 0;
     const daily = byDay[key] || [];
+
     for (const e of daily) {
-      runningBalance += e.direction === "CREDIT"
-        ? Number(e.amount)
-        : -Number(e.amount);
+      const delta =
+        e.direction === "CREDIT"
+          ? Number(e.amount)
+          : -Number(e.amount);
+
+      runningBalance += delta;
+
+      if (e.referenceType === "PROFIT") {
+        cumulativeProfit += Number(e.amount);
+        dailyProfit += Number(e.amount);
+      }
     }
 
     result.push({
       date: key,
-      balance: Number(runningBalance.toFixed(2))
+      totalBalance: Number(runningBalance.toFixed(2)),
+      activeInvestment: Number((runningBalance - cumulativeProfit).toFixed(2)),
+      totalProfit: Number(cumulativeProfit.toFixed(2)),
+      dailyProfit: Number(dailyProfit.toFixed(2))
     });
   }
 
