@@ -41,10 +41,11 @@ export async function getDashboardSummary(clerkUserId) {
   const lockedAgg = await prisma.ledger.aggregate({
     where: {
       userId,
-      type: { in: ["INVESTMENT_LOCK", "CAPITAL_LOCK"] }
+      referenceType: { in: ["INVESTMENT_LOCK", "CAPITAL_LOCK"] }
     },
     _sum: { amount: true }
   });
+
 
   const lockedBalance = lockedAgg._sum.amount || 0;
   const availableBalance = totalBalance - lockedBalance;
@@ -54,10 +55,11 @@ export async function getDashboardSummary(clerkUserId) {
     where: {
       userId,
       direction: "CREDIT",
-      type: "PROFIT"
+      referenceType: "PROFIT"
     },
     _sum: { amount: true }
   });
+
 
   const totalProfit = profitAgg._sum.amount || 0;
 
@@ -69,11 +71,12 @@ export async function getDashboardSummary(clerkUserId) {
     where: {
       userId,
       direction: "CREDIT",
-      type: "PROFIT",
+      referenceType: "PROFIT",
       createdAt: { gte: today }
     },
     _sum: { amount: true }
   });
+
 
   const todayProfit = todayProfitAgg._sum.amount || 0;
 
