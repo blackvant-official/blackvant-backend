@@ -84,10 +84,11 @@ export async function getDashboardSummary(clerkUserId) {
     totalBalance,
     availableBalance,
     lockedBalance,
-    activeInvestment: lockedBalance, // same until split exists
+    activeInvestment: totalBalance - totalProfit,
     totalProfit,
     todayProfit
   };
+
 }
 
 /**
