@@ -97,37 +97,69 @@ export async function getDashboardSummary(clerkUserId) {
 export async function getDashboardChart(clerkUserId, days = 30) {
   const userId = await resolveUserId(clerkUserId);
 
-  const start = new Date();
-  start.setUTCDate(start.getUTCDate() - days);
-  start.setUTCHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
 
-  const rows = await prisma.ledger.findMany({
+  const start = new Date(today);
+  start.setUTCDate(start.getUTCDate() - days);
+
+  // 1️⃣ Opening balance BEFORE range
+  const opening = await prisma.ledger.aggregate({
     where: {
       userId,
-      createdAt: { gte: start }
+      createdAt: { lt: start }
     },
-    orderBy: { createdAt: "asc" },
-    select: {
-      createdAt: true,
-      amount: true,
-      direction: true
+    _sum: {
+      amount: true
     }
   });
 
-  // Daily equity snapshot
-  const dailyMap = new Map();
-  let runningBalance = 0;
+  let runningBalance = Number(opening._sum.amount || 0);
 
-  for (const row of rows) {
-    runningBalance +=
-      row.direction === "CREDIT" ? row.amount : -row.amount;
+  // 2️⃣ Ledger entries INSIDE range
+  const entries = await prisma.ledger.findMany({
+    where: {
+      userId,
+      createdAt: {
+        gte: start,
+        lt: today
+      }
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      amount: true,
+      direction: true,
+      createdAt: true
+    }
+  });
 
-    const day = row.createdAt.toISOString().slice(0, 10);
-    dailyMap.set(day, runningBalance);
+  // 3️⃣ Group entries by day
+  const byDay = {};
+  for (const e of entries) {
+    const day = e.createdAt.toISOString().slice(0, 10);
+    byDay[day] ??= [];
+    byDay[day].push(e);
   }
 
-  return Array.from(dailyMap.entries()).map(([date, balance]) => ({
-    date,
-    balance
-  }));
+  // 4️⃣ Build daily equity curve
+  const result = [];
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    const key = d.toISOString().slice(0, 10);
+
+    const daily = byDay[key] || [];
+    for (const e of daily) {
+      runningBalance += e.direction === "CREDIT"
+        ? Number(e.amount)
+        : -Number(e.amount);
+    }
+
+    result.push({
+      date: key,
+      balance: Number(runningBalance.toFixed(2))
+    });
+  }
+
+  return result;
 }
