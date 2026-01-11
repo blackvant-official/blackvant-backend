@@ -268,3 +268,16 @@ model AdminProfitOtp {
   @@index([profitDistributionId])
   @@index([adminUserId])
 }
+
+model SystemSetting {
+  id                     String   @id @default(cuid())
+
+  capitalLockEnabled      Boolean  @default(false)
+  capitalLockDays         Int      @default(0)
+  capitalLockStartAt      DateTime?
+
+  // Audit only (no Prisma relation on purpose)
+  updatedByAdminId        String?
+
+  updatedAt               DateTime @updatedAt
+}

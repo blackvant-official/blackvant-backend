@@ -1,10 +1,12 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import { PrismaClient } from "@prisma/client";
 
 dotenv.config();
 
 const app = express();
+const prisma = new PrismaClient();
 
 /* --------------------------------------------------
    CORS CONFIG (Express v5 compatible)
@@ -107,9 +109,43 @@ app.use((err, req, res, next) => {
 });
 
 /* --------------------------------------------------
+   SYSTEM BOOTSTRAP
+-------------------------------------------------- */
+async function bootstrapSystemSetting() {
+  const count = await prisma.systemSetting.count();
+
+  if (count === 0) {
+    await prisma.systemSetting.create({
+      data: {
+        capitalLockEnabled: false,
+        capitalLockDays: 0,
+        capitalLockStartAt: null,
+      },
+    });
+
+    console.log("🟢 [BOOTSTRAP] SystemSetting row created");
+  } else {
+    console.log("ℹ️ [BOOTSTRAP] SystemSetting already exists");
+  }
+}
+
+/* --------------------------------------------------
    START SERVER
 -------------------------------------------------- */
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🚀 BlackVant backend running on port ${PORT}`);
-});
+
+async function startServer() {
+  try {
+    await prisma.$connect();
+    await bootstrapSystemSetting();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 BlackVant backend running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("🔥 Failed to start server:", err);
+    process.exit(1);
+  }
+}
+
+startServer();
