@@ -3,6 +3,7 @@ import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
+import { resolveCapitalLockState } from "../services/capitalLock.service.js";
 
 // ================================
 // STATUS NORMALIZATION (WITHDRAWALS)
@@ -103,13 +104,18 @@ if (requestedAmount.gt(availableBalance)) {
     error: "Insufficient available balance",
   });
 }
+// 🔐 CAPITAL LOCK ENFORCEMENT (CAPITAL ONLY)
+if (source === "capital") {
+  const { capitalLocked, capitalUnlockAt } =
+    await resolveCapitalLockState();
 
-    if (source === "capital") {
-      return res.status(403).json({
-        error: "Capital withdrawals are currently locked"
-      });
-    }
-
+  if (capitalLocked) {
+    return res.status(403).json({
+      error: "CAPITAL_LOCK_ACTIVE",
+      message: `Capital is locked until ${capitalUnlockAt.toISOString()}`,
+    });
+  }
+}
 
     const withdrawal = await prisma.withdrawal.create({
       data: {
