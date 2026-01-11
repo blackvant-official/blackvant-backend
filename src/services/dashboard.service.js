@@ -1,5 +1,6 @@
 // services/dashboard.service.js
 import prisma from "../utils/prisma.js";
+import { resolveCapitalLockState } from "./capitalLock.service.js";
 
 /**
  * Resolve internal userId from clerkId
@@ -80,13 +81,19 @@ export async function getDashboardSummary(clerkUserId) {
 
   const todayProfit = todayProfitAgg._sum.amount || 0;
 
+  const { capitalLocked, capitalUnlockAt } =
+    await resolveCapitalLockState();
+
   return {
     totalBalance,
     availableBalance,
     lockedBalance,
     activeInvestment: totalBalance - totalProfit,
     totalProfit,
-    todayProfit
+    todayProfit,
+    // Capital lock (read-only exposure)
+    capitalLocked,
+    capitalUnlockAt,
   };
 
 }
