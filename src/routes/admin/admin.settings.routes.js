@@ -1,9 +1,9 @@
 import express from "express";
-import { requireAdmin } from "../middleware/requireAdmin.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 import {
   getSystemSettings,
   updateCapitalLockPolicy,
-} from "../services/systemSettings.service.js";
+} from "../../services/systemSettings.service.js";
 
 const router = express.Router();
 
