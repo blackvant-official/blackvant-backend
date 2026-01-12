@@ -79,6 +79,7 @@ import adminEmailTestRoutes from "./routes/admin/email.test.routes.js";
 import adminProfitOtpRoutes from "./routes/admin/profit.otp.routes.js";
 import adminProfitDistributeRoutes from "./routes/admin/profit.distribute.routes.js";
 import profitAdminRoutes from "./routes/admin/profit.admin.routes.js";
+import adminSettingsRoutes from "./src/routes/admin/admin.settings.routes.js";
 
 
 app.use("/api/v1", userRoutes);
@@ -99,6 +100,7 @@ app.use("/api/v1/admin", adminEmailTestRoutes);
 app.use("/api/v1/admin", adminProfitOtpRoutes);
 app.use("/api/v1/admin", adminProfitDistributeRoutes);
 app.use("/api/v1/admin", profitAdminRoutes);
+app.use("/api/v1/admin/settings", adminSettingsRoutes);
 
 app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
