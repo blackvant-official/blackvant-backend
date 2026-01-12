@@ -104,15 +104,33 @@ if (requestedAmount.gt(availableBalance)) {
     error: "Insufficient available balance",
   });
 }
-// 🔐 CAPITAL LOCK ENFORCEMENT (CAPITAL ONLY)
-if (source === "capital") {
-  const { capitalLocked, capitalUnlockAt } =
-    await resolveCapitalLockState();
+// // 🔐 CAPITAL LOCK ENFORCEMENT (CAPITAL ONLY)
+// if (source === "capital") {
+//   const { capitalLocked, capitalUnlockAt } =
+//     await resolveCapitalLockState();
 
-  if (capitalLocked) {
+//   if (capitalLocked) {
+//     return res.status(403).json({
+//       error: "CAPITAL_LOCK_ACTIVE",
+//       message: `Capital is locked until ${capitalUnlockAt.toISOString()}`,
+//     });
+//   }
+// }
+// ==============================
+// Capital Lock Enforcement
+// ==============================
+if (source === "capital") {
+  const lockState = await resolveCapitalLockState(req.userContext.userId);
+
+  if (lockState.capitalLocked) {
     return res.status(403).json({
-      error: "CAPITAL_LOCK_ACTIVE",
-      message: `Capital is locked until ${capitalUnlockAt.toISOString()}`,
+      error: "CAPITAL_LOCKED",
+      message:
+        lockState.status === "PENDING"
+          ? "Investment capital is locked and will activate on first approved deposit."
+          : "Investment capital is locked.",
+      capitalUnlockAt: lockState.capitalUnlockAt,
+      status: lockState.status,
     });
   }
 }
