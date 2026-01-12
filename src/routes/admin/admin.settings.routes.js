@@ -1,4 +1,5 @@
 import express from "express";
+import { requireAuth } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import {
   getSystemSettings,
@@ -11,7 +12,7 @@ const router = express.Router();
  * GET /admin/settings/system
  * Fetch global system settings.
  */
-router.get("/system", requireAdmin, async (req, res) => {
+router.get("/system", requireAuth, requireAdmin, async (req, res) => {
   try {
     const settings = await getSystemSettings();
     res.json(settings);
@@ -25,7 +26,7 @@ router.get("/system", requireAdmin, async (req, res) => {
  * PATCH /admin/settings/system
  * Update capital lock policy.
  */
-router.patch("/system", requireAdmin, async (req, res) => {
+router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
   const { capitalLockEnabled, capitalLockDays } = req.body;
 
   if (typeof capitalLockEnabled !== "boolean") {
