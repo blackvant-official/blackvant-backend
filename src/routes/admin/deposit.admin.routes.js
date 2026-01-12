@@ -4,6 +4,7 @@ import prisma from "../../utils/prisma.js";
 import { requireAuth,  } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
+import { getSystemSettings } from "../../services/systemSettings.service.js";
 
 // ================================
 // STATUS NORMALIZATION (ADMIN DEPOSITS)
@@ -139,6 +140,23 @@ router.post(
         },
       }),
     ]);
+    // ================================
+    // CAPITAL LOCK ACTIVATION (SYSTEM-WIDE)
+    // ================================
+    const systemSettings = await getSystemSettings();
+      
+    if (
+      systemSettings.capitalLockEnabled === true &&
+      systemSettings.capitalLockStartAt === null
+    ) {
+      await prisma.systemSetting.update({
+        where: { id: systemSettings.id },
+        data: {
+          capitalLockStartAt: new Date(),
+        },
+      });
+    }
+
 
     return res.json({
       success: true,
