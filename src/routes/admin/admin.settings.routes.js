@@ -27,11 +27,22 @@ router.get("/system", requireAuth, requireAdmin, async (req, res) => {
  * Update capital lock policy.
  */
 router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
-  const { capitalLockEnabled, capitalLockDays } = req.body;
+  const { capitalLockEnabled, capitalLockDays, minDepositAmount } = req.body;
 
-  if (typeof capitalLockEnabled !== "boolean") {
-    return res.status(400).json({ error: "INVALID_CAPITAL_LOCK_FLAG" });
+  if (
+    typeof capitalLockEnabled !== "boolean" &&
+    typeof minDepositAmount !== "number"
+  ) {
+    return res.status(400).json({ error: "INVALID_SETTINGS_PAYLOAD" });
   }
+  
+  if (
+    typeof minDepositAmount === "number" &&
+    minDepositAmount <= 0
+  ) {
+    return res.status(400).json({ error: "INVALID_MIN_DEPOSIT" });
+  }
+
 
   if (capitalLockEnabled && (!capitalLockDays || capitalLockDays <= 0)) {
     return res.status(400).json({
@@ -45,6 +56,12 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
       capitalLockDays,
       adminUserId: req.admin.id,
     });
+    if (typeof minDepositAmount === "number") {
+      await prisma.systemSetting.updateMany({
+        data: { minDepositAmount },
+      });
+    }
+
 
 
     res.json({ success: true });

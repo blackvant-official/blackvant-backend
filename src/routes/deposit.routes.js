@@ -3,6 +3,7 @@ import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
+import { getMinDepositAmount } from "../services/systemSettings.service.js";
 
 // ================================
 // STATUS NORMALIZATION (DEPOSITS)
@@ -70,7 +71,16 @@ router.post(
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+    const minDepositAmount = await getMinDepositAmount();
+
+    if (Number(amount) < minDepositAmount) {
+      return res.status(400).json({
+        error: "MIN_DEPOSIT_NOT_MET",
+        minAmount: minDepositAmount,
+      });
+    }
+
+
     console.log("DEPOSIT BODY:", req.body);
     const deposit = await prisma.deposit.create({
       data: {

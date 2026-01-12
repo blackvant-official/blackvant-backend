@@ -28,3 +28,9 @@ export async function updateCapitalLockPolicy({
     },
   });
 }
+
+export async function getMinDepositAmount() {
+  const settings = await prisma.systemSetting.findFirst();
+  const value = Number(settings?.minDepositAmount);
+  return Number.isFinite(value) && value > 0 ? value : 100;
+}
