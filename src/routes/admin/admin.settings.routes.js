@@ -5,6 +5,7 @@ import {
   getSystemSettings,
   updateCapitalLockPolicy,
 } from "../../services/systemSettings.service.js";
+import prisma from "../../utils/prisma.js";
 
 const router = express.Router();
 
@@ -51,11 +52,14 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    await updateCapitalLockPolicy({
-      capitalLockEnabled,
-      capitalLockDays,
-      adminUserId: req.admin.id,
-    });
+    if (typeof capitalLockEnabled === "boolean") {
+      await updateCapitalLockPolicy({
+        capitalLockEnabled,
+        capitalLockDays,
+        adminUserId: req.admin.id,
+      });
+    }
+
     if (typeof minDepositAmount === "number") {
       await prisma.systemSetting.updateMany({
         data: { minDepositAmount },
