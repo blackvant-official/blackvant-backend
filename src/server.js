@@ -79,7 +79,7 @@ import adminEmailTestRoutes from "./routes/admin/email.test.routes.js";
 import adminProfitOtpRoutes from "./routes/admin/profit.otp.routes.js";
 import adminProfitDistributeRoutes from "./routes/admin/profit.distribute.routes.js";
 import profitAdminRoutes from "./routes/admin/profit.admin.routes.js";
-import adminSettingsRoutes from "./src/routes/admin/admin.settings.routes.js";
+import adminSettingsRoutes from "./routes/admin/admin.settings.routes.js";
 
 
 app.use("/api/v1", userRoutes);
