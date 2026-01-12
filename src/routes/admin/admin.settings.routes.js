@@ -43,8 +43,9 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     await updateCapitalLockPolicy({
       capitalLockEnabled,
       capitalLockDays,
-      adminUserId: req.user.id,
+      adminUserId: req.admin.id,
     });
+
 
     res.json({ success: true });
   } catch (err) {
