@@ -122,6 +122,9 @@ async function bootstrapSystemSetting() {
         capitalLockEnabled: false,
         capitalLockDays: 0,
         capitalLockStartAt: null,
+        minDepositAmount: 100,
+        minWithdrawAmount: 10,
+        withdrawFrequencyDays: 7,
       },
     });
 

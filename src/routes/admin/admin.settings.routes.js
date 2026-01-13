@@ -71,33 +71,38 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
+    // ================================
+    // CAPITAL LOCK (OPTIONAL)
+    // ================================
     if (typeof capitalLockEnabled === "boolean") {
       await updateCapitalLockPolicy({
         capitalLockEnabled,
         capitalLockDays,
         adminUserId: req.admin.id,
       });
-
-      // ================================
-      // WITHDRAW LIMITS (INDEPENDENT)
-      // ================================
-      if (typeof minWithdrawAmount === "number") {
-        await prisma.systemSetting.updateMany({
-          data: { minWithdrawAmount },
-        });
-      }
-      
-      if (typeof withdrawFrequencyDays === "number") {
-        await prisma.systemSetting.updateMany({
-          data: { withdrawFrequencyDays },
-        });
-      }
-
     }
 
+    // ================================
+    // MINIMUM DEPOSIT (INDEPENDENT)
+    // ================================
     if (typeof minDepositAmount === "number") {
       await prisma.systemSetting.updateMany({
         data: { minDepositAmount },
+      });
+    }
+
+    // ================================
+    // WITHDRAW LIMITS (INDEPENDENT)
+    // ================================
+    if (typeof minWithdrawAmount === "number") {
+      await prisma.systemSetting.updateMany({
+        data: { minWithdrawAmount },
+      });
+    }
+
+    if (typeof withdrawFrequencyDays === "number") {
+      await prisma.systemSetting.updateMany({
+        data: { withdrawFrequencyDays },
       });
     }
 
