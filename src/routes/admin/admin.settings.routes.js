@@ -57,6 +57,19 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     });
   }
 
+  if (
+    typeof minWithdrawAmount === "number" &&
+    minWithdrawAmount <= 0
+  ) {
+    return res.status(400).json({ error: "INVALID_MIN_WITHDRAW" });
+  }
+  if (
+    typeof withdrawFrequencyDays === "number" &&
+    withdrawFrequencyDays <= 0
+  ) {
+    return res.status(400).json({ error: "INVALID_WITHDRAW_FREQUENCY" });
+  }
+
   try {
     if (typeof capitalLockEnabled === "boolean") {
       await updateCapitalLockPolicy({
@@ -65,37 +78,27 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
         adminUserId: req.admin.id,
       });
 
+      // ================================
+      // WITHDRAW LIMITS (INDEPENDENT)
+      // ================================
       if (typeof minWithdrawAmount === "number") {
         await prisma.systemSetting.updateMany({
           data: { minWithdrawAmount },
         });
       }
-
+      
       if (typeof withdrawFrequencyDays === "number") {
         await prisma.systemSetting.updateMany({
           data: { withdrawFrequencyDays },
         });
       }
+
     }
 
     if (typeof minDepositAmount === "number") {
       await prisma.systemSetting.updateMany({
         data: { minDepositAmount },
       });
-    }
-
-    if (
-      typeof minWithdrawAmount === "number" &&
-      minWithdrawAmount <= 0
-    ) {
-      return res.status(400).json({ error: "INVALID_MIN_WITHDRAW" });
-    }
-
-    if (
-      typeof withdrawFrequencyDays === "number" &&
-      withdrawFrequencyDays <= 0
-    ) {
-      return res.status(400).json({ error: "INVALID_WITHDRAW_FREQUENCY" });
     }
 
     res.json({ success: true });
