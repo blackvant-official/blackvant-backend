@@ -276,6 +276,8 @@ model SystemSetting {
   capitalLockDays         Int      @default(0)
   capitalLockStartAt      DateTime?
   minDepositAmount        Decimal?
+  minWithdrawAmount       Decimal?
+  withdrawFrequencyDays   Int?
 
   // Audit only (no Prisma relation on purpose)
   updatedByAdminId        String?

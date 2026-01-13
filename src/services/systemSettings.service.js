@@ -34,3 +34,15 @@ export async function getMinDepositAmount() {
   const value = Number(settings?.minDepositAmount);
   return Number.isFinite(value) && value > 0 ? value : 100;
 }
+
+export async function getMinWithdrawAmount() {
+  const settings = await prisma.systemSetting.findFirst();
+  const value = Number(settings?.minWithdrawAmount);
+  return Number.isFinite(value) && value > 0 ? value : 10;
+}
+
+export async function getWithdrawFrequencyDays() {
+  const settings = await prisma.systemSetting.findFirst();
+  const value = Number(settings?.withdrawFrequencyDays);
+  return Number.isFinite(value) && value > 0 ? value : 7;
+}

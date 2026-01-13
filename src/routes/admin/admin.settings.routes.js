@@ -28,7 +28,13 @@ router.get("/system", requireAuth, requireAdmin, async (req, res) => {
  * Update capital lock policy.
  */
 router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
-  const { capitalLockEnabled, capitalLockDays, minDepositAmount } = req.body;
+  const {
+    capitalLockEnabled,
+    capitalLockDays,
+    minDepositAmount,
+    minWithdrawAmount,
+    withdrawFrequencyDays,
+  } = req.body;
 
   if (
     typeof capitalLockEnabled !== "boolean" &&
@@ -58,6 +64,18 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
         capitalLockDays,
         adminUserId: req.admin.id,
       });
+
+      if (typeof minWithdrawAmount === "number") {
+        await prisma.systemSetting.updateMany({
+          data: { minWithdrawAmount },
+        });
+      }
+
+      if (typeof withdrawFrequencyDays === "number") {
+        await prisma.systemSetting.updateMany({
+          data: { withdrawFrequencyDays },
+        });
+      }
     }
 
     if (typeof minDepositAmount === "number") {
@@ -66,7 +84,19 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
+    if (
+      typeof minWithdrawAmount === "number" &&
+      minWithdrawAmount <= 0
+    ) {
+      return res.status(400).json({ error: "INVALID_MIN_WITHDRAW" });
+    }
 
+    if (
+      typeof withdrawFrequencyDays === "number" &&
+      withdrawFrequencyDays <= 0
+    ) {
+      return res.status(400).json({ error: "INVALID_WITHDRAW_FREQUENCY" });
+    }
 
     res.json({ success: true });
   } catch (err) {

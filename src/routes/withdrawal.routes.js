@@ -4,6 +4,10 @@ import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
 import { resolveCapitalLockState } from "../services/capitalLock.service.js";
+import {
+  getMinWithdrawAmount,
+  getWithdrawFrequencyDays,
+} from "../services/systemSettings.service.js";
 
 // ================================
 // STATUS NORMALIZATION (WITHDRAWALS)
@@ -14,6 +18,40 @@ const normalizeWithdrawalStatus = (status) => {
 };
 
 const router = express.Router();
+
+// ================================
+// WITHDRAW SYSTEM LIMITS
+// ================================
+const minWithdraw = await getMinWithdrawAmount();
+const frequencyDays = await getWithdrawFrequencyDays();
+
+const requestedAmount = new Prisma.Decimal(amount.toString());
+
+if (requestedAmount.lt(new Prisma.Decimal(minWithdraw))) {
+  return res.status(400).json({
+    error: "MIN_WITHDRAW_NOT_MET",
+    minWithdraw,
+  });
+}
+
+// Frequency enforcement (creation-based, ledger untouched)
+const lastWithdrawal = await prisma.withdrawal.findFirst({
+  where: { userId: user.id },
+  orderBy: { createdAt: "desc" },
+});
+
+if (lastWithdrawal) {
+  const nextAllowedAt = new Date(lastWithdrawal.createdAt);
+  nextAllowedAt.setDate(nextAllowedAt.getDate() + frequencyDays);
+
+  if (new Date() < nextAllowedAt) {
+    return res.status(429).json({
+      error: "WITHDRAW_FREQUENCY_LIMIT",
+      nextAllowedAt,
+      frequencyDays,
+    });
+  }
+}
 
 // GET /api/v1/me/withdrawals
 router.get("/me/withdrawals", requireAuth, async (req, res) => {
@@ -93,6 +131,7 @@ const debitAgg = await prisma.ledger.aggregate({
   _sum: { amount: true },
 });
 
+
 const totalCredits = creditAgg._sum.amount || new Prisma.Decimal(0);
 const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
 
@@ -104,18 +143,7 @@ if (requestedAmount.gt(availableBalance)) {
     error: "Insufficient available balance",
   });
 }
-// // 🔐 CAPITAL LOCK ENFORCEMENT (CAPITAL ONLY)
-// if (source === "capital") {
-//   const { capitalLocked, capitalUnlockAt } =
-//     await resolveCapitalLockState();
 
-//   if (capitalLocked) {
-//     return res.status(403).json({
-//       error: "CAPITAL_LOCK_ACTIVE",
-//       message: `Capital is locked until ${capitalUnlockAt.toISOString()}`,
-//     });
-//   }
-// }
 // ==============================
 // Capital Lock Enforcement
 // ==============================
