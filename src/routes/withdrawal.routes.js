@@ -19,40 +19,6 @@ const normalizeWithdrawalStatus = (status) => {
 
 const router = express.Router();
 
-// ================================
-// WITHDRAW SYSTEM LIMITS
-// ================================
-const minWithdraw = await getMinWithdrawAmount();
-const frequencyDays = await getWithdrawFrequencyDays();
-
-const requestedAmount = new Prisma.Decimal(amount.toString());
-
-if (requestedAmount.lt(new Prisma.Decimal(minWithdraw))) {
-  return res.status(400).json({
-    error: "MIN_WITHDRAW_NOT_MET",
-    minWithdraw,
-  });
-}
-
-// Frequency enforcement (creation-based, ledger untouched)
-const lastWithdrawal = await prisma.withdrawal.findFirst({
-  where: { userId: user.id },
-  orderBy: { createdAt: "desc" },
-});
-
-if (lastWithdrawal) {
-  const nextAllowedAt = new Date(lastWithdrawal.createdAt);
-  nextAllowedAt.setDate(nextAllowedAt.getDate() + frequencyDays);
-
-  if (new Date() < nextAllowedAt) {
-    return res.status(429).json({
-      error: "WITHDRAW_FREQUENCY_LIMIT",
-      nextAllowedAt,
-      frequencyDays,
-    });
-  }
-}
-
 // GET /api/v1/me/withdrawals
 router.get("/me/withdrawals", requireAuth, async (req, res) => {
   try {
@@ -108,6 +74,41 @@ router.post(
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    // ================================
+    // WITHDRAW SYSTEM LIMITS (AUTHORITATIVE)
+    // ================================
+    const minWithdraw = await getMinWithdrawAmount();
+    const frequencyDays = await getWithdrawFrequencyDays();
+
+    const requestedAmount = new Prisma.Decimal(amount.toString());
+
+    if (requestedAmount.lt(new Prisma.Decimal(minWithdraw))) {
+      return res.status(400).json({
+        error: "MIN_WITHDRAW_NOT_MET",
+        minWithdraw,
+      });
+    }
+
+    // Frequency enforcement (creation-based, ledger untouched)
+    const lastWithdrawal = await prisma.withdrawal.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (lastWithdrawal) {
+      const nextAllowedAt = new Date(lastWithdrawal.createdAt);
+      nextAllowedAt.setDate(nextAllowedAt.getDate() + frequencyDays);
+    
+      if (new Date() < nextAllowedAt) {
+        return res.status(429).json({
+          error: "WITHDRAW_FREQUENCY_LIMIT",
+          nextAllowedAt,
+          frequencyDays,
+        });
+      }
+    }
+
     
     // -------------------------------
 // LEDGER-BASED WITHDRAWAL CHECK
@@ -136,7 +137,6 @@ const totalCredits = creditAgg._sum.amount || new Prisma.Decimal(0);
 const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
 
 const availableBalance = totalCredits.minus(totalDebits);
-const requestedAmount = new Prisma.Decimal(amount.toString());
 
 if (requestedAmount.gt(availableBalance)) {
   return res.status(403).json({
