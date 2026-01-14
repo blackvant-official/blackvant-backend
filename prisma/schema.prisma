@@ -38,6 +38,7 @@ model User {
   supportTickets    SupportTicket[]
 
   // Opposite relations for admin actions
+  withdrawalOtps    WithdrawalOtp[]
   depositsReviewed     Deposit[]            @relation("DepositReviewedBy")
   withdrawalsReviewed  Withdrawal[]         @relation("WithdrawalReviewedBy")
   profitDistributionsCreated ProfitDistribution[] @relation("ProfitCreatedBy")
@@ -283,4 +284,25 @@ model SystemSetting {
   updatedByAdminId        String?
 
   updatedAt               DateTime @updatedAt
+}
+
+model WithdrawalOtp {
+  id            String   @id @default(uuid())
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  otpHash       String
+  expiresAt     DateTime
+
+  verifiedAt    DateTime?
+  used          Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+
+  ipAddress     String?
+  userAgent     String?
+
+  @@index([userId])
+  @@index([expiresAt])
 }

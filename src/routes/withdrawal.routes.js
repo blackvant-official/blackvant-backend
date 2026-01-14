@@ -8,6 +8,15 @@ import {
   getMinWithdrawAmount,
   getWithdrawFrequencyDays,
 } from "../services/systemSettings.service.js";
+import {
+  generateOtp,
+  hashOtp,
+  getOtpExpiry,
+} from "../services/otp.service.js";
+
+import { sendEmail } from "../services/email.service.js";
+import bcrypt from "bcrypt";
+
 
 // ================================
 // STATUS NORMALIZATION (WITHDRAWALS)
@@ -51,6 +60,130 @@ router.get("/me/withdrawals", requireAuth, async (req, res) => {
   }
 });
 
+// ======================================
+// POST /api/v1/me/withdrawals/otp/request
+// ======================================
+router.post(
+  "/me/withdrawals/otp/request",
+  requireAuth,
+  requireWritable,
+  async (req, res) => {
+    try {
+      const { clerkUserId } = req.userContext;
+
+      const user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Invalidate previous unused OTPs (soft)
+      await prisma.withdrawalOtp.updateMany({
+        where: {
+          userId: user.id,
+          used: false,
+          verifiedAt: null,
+        },
+        data: {
+          used: true,
+        },
+      });
+
+      // Generate + hash OTP
+      const otp = generateOtp();
+      const otpHash = await hashOtp(otp);
+
+      await prisma.withdrawalOtp.create({
+        data: {
+          userId: user.id,
+          otpHash,
+          expiresAt: getOtpExpiry(),
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+        },
+      });
+
+      // Send OTP email
+      await sendEmail({
+        to: user.email,
+        subject: "BlackVant Withdrawal Verification Code",
+        text:
+          `Your withdrawal verification code is:\n\n` +
+          `${otp}\n\n` +
+          `This code expires in 10 minutes.\n\n` +
+          `If you did not request this, ignore this email.`,
+      });
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("REQUEST OTP ERROR:", err);
+      return res.status(500).json({ error: "Failed to send OTP" });
+    }
+  }
+);
+
+// ======================================
+// POST /api/v1/me/withdrawals/otp/verify
+// ======================================
+router.post(
+  "/me/withdrawals/otp/verify",
+  requireAuth,
+  requireWritable,
+  async (req, res) => {
+    try {
+      const { clerkUserId } = req.userContext;
+      const { otp } = req.body;
+
+      if (!otp) {
+        return res.status(400).json({ error: "OTP_REQUIRED" });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const record = await prisma.withdrawalOtp.findFirst({
+        where: {
+          userId: user.id,
+          used: false,
+          verifiedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!record) {
+        return res.status(400).json({ error: "OTP_EXPIRED_OR_INVALID" });
+      }
+
+      const isValid = await bcrypt.compare(otp, record.otpHash);
+
+      if (!isValid) {
+        return res.status(400).json({ error: "INVALID_OTP" });
+      }
+
+      await prisma.withdrawalOtp.update({
+        where: { id: record.id },
+        data: {
+          used: true,
+          verifiedAt: new Date(),
+        },
+      });
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("VERIFY OTP ERROR:", err);
+      return res.status(500).json({ error: "OTP verification failed" });
+    }
+  }
+);
+
 
 
 // POST /api/v1/me/withdrawals
@@ -74,6 +207,34 @@ router.post(
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    // ==============================
+    // OTP VERIFICATION (MANDATORY)
+    // ==============================
+    const otpRecord = await prisma.withdrawalOtp.findFirst({
+      where: {
+        userId: user.id,
+        used: true,
+        verifiedAt: { not: null },
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { verifiedAt: "desc" },
+    });
+    
+    if (!otpRecord) {
+      return res.status(403).json({
+        error: "OTP_REQUIRED",
+        message: "Withdrawal requires OTP verification",
+      });
+    }
+    
+    // Consume OTP immediately (single-use guarantee)
+    await prisma.withdrawalOtp.update({
+      where: { id: otpRecord.id },
+      data: {
+        expiresAt: new Date(), // hard invalidate after use
+      },
+    });
 
     // ================================
     // WITHDRAW SYSTEM LIMITS (AUTHORITATIVE)
