@@ -65,7 +65,12 @@ router.post(
     },
   });
 
+  if (!Object.values(AttachmentPurpose).includes(purpose)) {
+    return res.status(400).json({ error: "Invalid attachment purpose" });
+  }
+
   res.json({ attachmentId: attachment.id });
+
 });
 
 // Signed download
