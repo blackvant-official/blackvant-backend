@@ -17,13 +17,13 @@ router.get("/me/transactions", requireAuth, async (req, res) => {
       select: { id: true }
     });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!user) return res.json([]);
 
-    const entries = await prisma.ledger.findMany({
+    /* ======================
+       1. LEDGER (APPROVED)
+       ====================== */
+    const ledger = await prisma.ledger.findMany({
       where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
       select: {
         id: true,
         amount: true,
@@ -33,11 +33,77 @@ router.get("/me/transactions", requireAuth, async (req, res) => {
       }
     });
 
-    res.json(entries);
+    const ledgerItems = ledger.map(l => ({
+      id: `ledger_${l.id}`,
+      type:
+        l.referenceType === "DEPOSIT" ? "deposit" :
+        l.referenceType === "WITHDRAWAL" ? "withdrawal" :
+        "profit",
+      amount:
+        l.direction === "CREDIT"
+          ? Number(l.amount)
+          : -Number(l.amount),
+      status: "approved",
+      createdAt: l.createdAt
+    }));
+
+    /* ======================
+       2. DEPOSITS (PENDING)
+       ====================== */
+    const deposits = await prisma.deposit.findMany({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        createdAt: true
+      }
+    });
+
+    const depositItems = deposits.map(d => ({
+      id: `deposit_${d.id}`,
+      type: "deposit",
+      amount: Number(d.amount),
+      status: d.status.toLowerCase(),
+      createdAt: d.createdAt
+    }));
+
+    /* ======================
+       3. WITHDRAWALS (PENDING)
+       ====================== */
+    const withdrawals = await prisma.withdrawal.findMany({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        createdAt: true
+      }
+    });
+
+    const withdrawalItems = withdrawals.map(w => ({
+      id: `withdrawal_${w.id}`,
+      type: "withdrawal",
+      amount: -Number(w.amount),
+      status: w.status.toLowerCase(),
+      createdAt: w.createdAt
+    }));
+
+    /* ======================
+       MERGE & SORT
+       ====================== */
+    const all = [
+      ...ledgerItems,
+      ...depositItems,
+      ...withdrawalItems
+    ].sort((a, b) => b.createdAt - a.createdAt);
+
+    res.json(all);
   } catch (err) {
-    console.error("LEDGER TRANSACTIONS ERROR:", err);
-    res.status(500).json({ error: "Failed to load transactions" });
+    console.error("UNIFIED TRANSACTIONS ERROR:", err);
+    res.status(500).json([]);
   }
 });
+
 
 export default router;
