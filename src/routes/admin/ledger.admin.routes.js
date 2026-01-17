@@ -1,14 +1,14 @@
 import express from "express";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 import prisma from "../../utils/prisma.js";
 
 const router = express.Router();
 
 /**
- * READ-ONLY — Admin Ledger Inspection
- * No mutations allowed
- */
-router.get("/", requireAuth, async (req, res) => {
+ * READ-ONLY — Admin Ledger Inspection */
+router.use(requireAuth, requireAdmin);
+router.get("/", async (req, res) => {
   try {
     const ledger = await prisma.ledger.findMany({
       orderBy: { createdAt: "desc" },

@@ -1,8 +1,10 @@
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
-
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 const router = express.Router();
+
+router.use(requireAuth, requireAdmin);
 
 async function getActiveInvestmentSnapshot(prisma) {
   const ledgerEntries = await prisma.ledger.findMany({
@@ -91,7 +93,7 @@ function calculateProfitDistribution(snapshot, distributionPercent) {
  * Phase B-4 — Profit Distribution (Ledger CREDIT)
  * NOTE: Logic will be implemented step-by-step.
  */
-router.post("/profit/distribute", requireAuth, async (req, res) => {
+router.post("/profit/distribute", async (req, res) => {
   try {
     const adminUserId = req.auth?.userId;
     const { profitDistributionId } = req.body;

@@ -1,15 +1,17 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
+router.use(requireAuth, requireAdmin);
 
 /**
  * GET /api/v1/admin/transactions
  * Global immutable ledger (admin only)
  */
-router.get("/transactions", requireAuth, async (req, res) => {
+router.get("/transactions", async (req, res) => {
   try {
     const deposits = await prisma.deposit.findMany({
       include: { user: true },

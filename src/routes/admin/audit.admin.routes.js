@@ -1,14 +1,15 @@
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
-
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 const router = express.Router();
 
 /**
  * GET /api/v1/admin/audit-logs
- * Phase A — Read-only
  */
-router.get("/audit-logs", requireAuth, async (req, res) => {
+router.use(requireAuth, requireAdmin);
+
+router.get("/audit-logs", async (req, res) => {
   try {
     const logs = await prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },

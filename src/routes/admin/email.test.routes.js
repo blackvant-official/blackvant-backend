@@ -1,10 +1,12 @@
 import express from "express";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { sendEmail } from "../../services/email.service.js";
 
 const router = express.Router();
 
-router.post("/admin/email/test", requireAuth, async (req, res) => {
+router.use(requireAuth, requireAdmin);
+router.post("/admin/email/test", async (req, res) => {
   try {
     const email = req.userContext?.email;
 

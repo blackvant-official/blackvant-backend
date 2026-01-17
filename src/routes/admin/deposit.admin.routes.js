@@ -17,10 +17,10 @@ const normalizeAdminDepositStatus = (status) => {
 const router = express.Router();
 
 // GET /api/v1/admin/deposits
-// ---------------------------------------------
-// READ-ONLY — Returns ALL deposits (any status)
-// Used by Admin Deposits page with filters
-router.get("/deposits", requireAuth, requireAdmin, async (req, res) => {
+
+router.use(requireAuth, requireAdmin);
+
+router.get("/deposits", async (req, res) => {
   try {
     const rawStatus = req.query.status;
     const normalizedStatus = normalizeAdminDepositStatus(rawStatus);
@@ -50,7 +50,7 @@ router.get("/deposits", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/v1/admin/deposits/pending
-router.get("/deposits/pending", requireAuth,  async (req, res) => {
+router.get("/deposits/pending", async (req, res) => {
   try {
     const deposits = await prisma.deposit.findMany({
       where: { status: "PENDING" },
@@ -83,8 +83,6 @@ router.get("/deposits/pending", requireAuth,  async (req, res) => {
  */
 router.post(
   "/deposits/:id/approve",
-  requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
   const depositId = req.params.id;
@@ -176,8 +174,6 @@ router.post(
 // POST /api/v1/admin/deposits/:id/reject
 router.post(
   "/deposits/:id/reject",
-  requireAuth,
-  requireAdmin,
   async (req, res) => {
     const depositId = req.params.id;
     const adminId = req.auth.userId;
@@ -239,6 +235,5 @@ router.post(
     }
   }
 );
-
 
 export default router;

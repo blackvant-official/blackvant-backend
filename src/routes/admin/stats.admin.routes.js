@@ -1,10 +1,12 @@
 import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth, } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 
 const router = express.Router();
+router.use(requireAuth, requireAdmin);
 
-router.get("/stats", requireAuth, async (req, res) => {
+router.get("/stats", async (req, res) => {
   try {
     return res.json({
       "7d": {
@@ -44,7 +46,7 @@ router.get("/stats", requireAuth, async (req, res) => {
 
 
 // GET /api/v1/admin/settings
-router.get("/settings", requireAuth, async (req, res) => {
+router.get("/settings", async (req, res) => {
   try {
     const [
       usersCount,

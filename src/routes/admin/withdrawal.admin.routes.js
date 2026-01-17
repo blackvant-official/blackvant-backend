@@ -14,12 +14,13 @@ const normalizeAdminWithdrawalStatus = (status) => {
 };
 
 const router = express.Router();
+router.use(requireAuth, requireAdmin);
 
 // GET /api/v1/admin/withdrawals
 // ---------------------------------------------
 // READ-ONLY — Returns ALL withdrawals (any status)
 // Used by Admin Withdrawals page with filters
-router.get("/withdrawals", requireAuth, async (req, res) => {
+router.get("/withdrawals", async (req, res) => {
   try {
     const rawStatus = req.query.status;
     const normalizedStatus = normalizeAdminWithdrawalStatus(rawStatus);
@@ -50,7 +51,7 @@ router.get("/withdrawals", requireAuth, async (req, res) => {
 });
 
 // GET /api/v1/admin/withdrawals/pending
-router.get("/withdrawals/pending", requireAuth, async (req, res) => {
+router.get("/withdrawals/pending", async (req, res) => {
   try {
     const withdrawals = await prisma.withdrawal.findMany({
       where: { status: "PENDING" },
@@ -73,8 +74,6 @@ router.get("/withdrawals/pending", requireAuth, async (req, res) => {
 // POST /api/v1/admin/withdrawals/:id/approve
 router.post(
   "/withdrawals/:id/approve",
-  requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
     const withdrawalId = req.params.id;
@@ -202,8 +201,6 @@ router.post(
 // POST /api/v1/admin/withdrawals/:id/reject
 router.post(
   "/withdrawals/:id/reject",
-  requireAuth,
-  requireAdmin,
   requireWritable,
   async (req, res) => {
     const { id } = req.params;

@@ -1,16 +1,17 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { generateOtp, hashOtp, getOtpExpiry } from "../../services/otp.service.js";
 import { sendEmail } from "../../services/email.service.js";
 import bcrypt from "bcrypt";
 
 const router = express.Router();
 const prisma = new PrismaClient();
-console.log("✅ admin profit OTP routes loaded");
+router.use(requireAuth, requireAdmin);
 
 // Verify Route
-router.post("/profit/otp/verify", requireAuth, async (req, res) => {
+router.post("/profit/otp/verify", async (req, res) => {
   try {
     const adminUserId = req.auth?.userId;
     const { profitDistributionId, otp } = req.body;
@@ -70,7 +71,7 @@ router.post("/profit/otp/verify", requireAuth, async (req, res) => {
   }
 });
 // Request Route
-router.post("/profit/otp/request", requireAuth, async (req, res) => {
+router.post("/profit/otp/request", async (req, res) => {
   try {
     const adminUserId = req.auth?.userId;
     const adminEmail = req.userContext?.email;
