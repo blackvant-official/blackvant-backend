@@ -18,56 +18,48 @@ const router = express.Router();
 
 // GET /api/v1/admin/deposits
 
-router.use(requireAuth, requireAdmin);
-
 router.get("/deposits", async (req, res) => {
   try {
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+    const skip = (page - 1) * limit;
+
     const rawStatus = req.query.status;
     const normalizedStatus = normalizeAdminDepositStatus(rawStatus);
 
-    const deposits = await prisma.deposit.findMany({
-      where: {
-        ...(normalizedStatus && { status: normalizedStatus }),
-      },
-      include: {
-        user: {
-          select: { email: true },
+    const where = {
+      ...(normalizedStatus && { status: normalizedStatus })
+    };
+
+    const [deposits, total] = await Promise.all([
+      prisma.deposit.findMany({
+        where,
+        include: {
+          user: { select: { email: true } }
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.deposit.count({ where })
+    ]);
 
     return res.json({
       success: true,
       deposits,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (err) {
     console.error("ADMIN ALL DEPOSITS ERROR:", err);
-    return res.status(500).json({
-      error: "Failed to fetch deposits",
-    });
+    return res.status(500).json({ error: "Failed to fetch deposits" });
   }
 });
 
-// GET /api/v1/admin/deposits/pending
-router.get("/deposits/pending", async (req, res) => {
-  try {
-    const deposits = await prisma.deposit.findMany({
-      where: { status: "PENDING" },
-      include: {
-        user: {
-          select: { email: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json({ success: true, deposits });
-  } catch (err) {
-    console.error("ADMIN PENDING DEPOSITS ERROR:", err);
-    res.status(500).json({ error: "Something went wrong" });
-  }
-});
 
 // POST /api/v1/admin/deposits/:id/approve
 
@@ -180,23 +172,8 @@ router.post(
     const adminId = req.auth.userId;
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        // 1. Atomically reject only if still pending
-        const updated = await tx.deposit.updateMany({
-          where: {
-            id: depositId,
-            status: "PENDING"
-          },
-          data: {
-            status: "REJECTED"
-          }
-        });
-
-        if (updated.count === 0) {
-          throw new Error("DEPOSIT_ALREADY_PROCESSED");
-        }
-
-        // 2. Fetch deposit for audit context
+      await prisma.$transaction(async (tx) => {
+        // 1️⃣ Fetch deposit
         const deposit = await tx.deposit.findUnique({
           where: { id: depositId }
         });
@@ -205,10 +182,20 @@ router.post(
           throw new Error("DEPOSIT_NOT_FOUND");
         }
 
-        // 3. Write audit log (no ledger write)
+        if (deposit.status !== "PENDING") {
+          throw new Error("DEPOSIT_ALREADY_PROCESSED");
+        }
+
+        // 2️⃣ Update status
+        await tx.deposit.update({
+          where: { id: depositId },
+          data: { status: "REJECTED" }
+        });
+
+        // 3️⃣ Audit log
         await tx.auditLog.create({
           data: {
-            action: "DEPOSIT_STATUS_UPDATED",
+            action: "DEPOSIT_REJECTED",
             actorId: adminId,
             entityType: "DEPOSIT",
             entityId: deposit.id,
@@ -217,14 +204,13 @@ router.post(
             }
           }
         });
-
-        return { success: true };
       });
 
-      return res.json(result);
+      return res.json({ success: true });
+
     } catch (err) {
       if (err.message === "DEPOSIT_ALREADY_PROCESSED") {
-        return res.status(409).json({ error: err.message });
+        return res.status(409).json({ error: "Deposit already processed" });
       }
 
       if (err.message === "DEPOSIT_NOT_FOUND") {
@@ -236,5 +222,6 @@ router.post(
     }
   }
 );
+
 
 export default router;
