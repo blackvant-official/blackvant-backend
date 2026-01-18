@@ -174,6 +174,7 @@ router.post(
 // POST /api/v1/admin/deposits/:id/reject
 router.post(
   "/deposits/:id/reject",
+  requireWritable,
   async (req, res) => {
     const depositId = req.params.id;
     const adminId = req.auth.userId;
