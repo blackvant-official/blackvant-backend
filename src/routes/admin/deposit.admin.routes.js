@@ -169,10 +169,20 @@ router.post(
   requireWritable,
   async (req, res) => {
     const depositId = req.params.id;
-    const adminId = req.auth.userId;
+    const clerkUserId = req.auth.userId;
 
     try {
       await prisma.$transaction(async (tx) => {
+
+        // 🔹 Resolve internal admin user
+        const adminUser = await tx.user.findUnique({
+          where: { clerkUserId }
+        });
+
+        if (!adminUser) {
+          throw new Error("ADMIN_USER_NOT_FOUND");
+        }
+
         // 1️⃣ Fetch deposit
         const deposit = await tx.deposit.findUnique({
           where: { id: depositId }
@@ -192,11 +202,11 @@ router.post(
           data: { status: "REJECTED" }
         });
 
-        // 3️⃣ Audit log
+        // 3️⃣ Audit log (NOW VALID FK)
         await tx.auditLog.create({
           data: {
             action: "DEPOSIT_REJECTED",
-            actorId: adminId,
+            actorId: adminUser.id, // ✅ INTERNAL ID
             entityType: "DEPOSIT",
             entityId: deposit.id,
             meta: {
@@ -209,10 +219,12 @@ router.post(
       return res.json({ success: true });
 
     } catch (err) {
+      if (err.message === "ADMIN_USER_NOT_FOUND") {
+        return res.status(403).json({ error: "Admin user not registered" });
+      }
       if (err.message === "DEPOSIT_ALREADY_PROCESSED") {
         return res.status(409).json({ error: "Deposit already processed" });
       }
-
       if (err.message === "DEPOSIT_NOT_FOUND") {
         return res.status(404).json({ error: "Deposit not found" });
       }
