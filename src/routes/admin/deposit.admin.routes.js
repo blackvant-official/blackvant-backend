@@ -176,8 +176,9 @@ router.post(
 
         // 🔹 Resolve internal admin user
         const adminUser = await tx.user.findUnique({
-          where: { clerkUserId }
+          where: { clerkId: clerkUserId }
         });
+
 
         if (!adminUser) {
           throw new Error("ADMIN_USER_NOT_FOUND");
