@@ -2,47 +2,22 @@ import express from "express";
 import prisma from "../../utils/prisma.js";
 import { requireAuth, } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
+import { getAdminDashboardStats } from "../../services/adminDashboard.service.js";
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
 
 router.get("/stats", async (req, res) => {
   try {
-    return res.json({
-      "7d": {
-        labels: [],
-        investment: [],
-        investors: [],
-        withdrawals: [],
-        profits: []
-      },
-      "30d": {
-        labels: [],
-        investment: [],
-        investors: [],
-        withdrawals: [],
-        profits: []
-      },
-      "90d": {
-        labels: [],
-        investment: [],
-        investors: [],
-        withdrawals: [],
-        profits: []
-      },
-      "all": {
-        labels: [],
-        investment: [],
-        investors: [],
-        withdrawals: [],
-        profits: []
-      }
-    });
+    const stats = await getAdminDashboardStats();
+    return res.json(stats);
   } catch (err) {
     console.error("ADMIN STATS ERROR:", err);
-    res.status(500).json({ error: "Admin stats failed" });
+    return res.status(500).json({ error: "FAILED_TO_LOAD_ADMIN_STATS" });
   }
 });
+
+
 
 
 // GET /api/v1/admin/settings
