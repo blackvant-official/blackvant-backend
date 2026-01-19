@@ -10,19 +10,29 @@ const router = express.Router();
 router.use(requireAuth, requireAdmin);
 router.get("/", async (req, res) => {
   try {
-    const ledger = await prisma.ledger.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100
-    });
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 25);
+    const skip = (page - 1) * limit;
+
+    const [ledger, total] = await Promise.all([
+      prisma.ledger.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.ledger.count()
+    ]);
 
     return res.json({
       success: true,
-      ledger
+      ledger,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     });
   } catch (err) {
     console.error("ADMIN LEDGER READ ERROR:", err);
     return res.status(500).json({ error: "Failed to read ledger" });
   }
 });
+
 
 export default router;
