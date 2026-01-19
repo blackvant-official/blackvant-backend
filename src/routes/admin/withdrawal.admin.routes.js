@@ -22,33 +22,46 @@ router.use(requireAuth, requireAdmin);
 // Used by Admin Withdrawals page with filters
 router.get("/withdrawals", async (req, res) => {
   try {
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+    const skip = (page - 1) * limit;
+
     const rawStatus = req.query.status;
     const normalizedStatus = normalizeAdminWithdrawalStatus(rawStatus);
 
-    const withdrawals = await prisma.withdrawal.findMany({
-      where: {
-        ...(normalizedStatus && { status: normalizedStatus }),
-      },
-      include: {
-    user: {
-      select: { email: true },
-    },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const where = {
+      ...(normalizedStatus && { status: normalizedStatus }),
+    };
 
+    const [withdrawals, total] = await Promise.all([
+      prisma.withdrawal.findMany({
+        where,
+        include: {
+          user: { select: { email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.withdrawal.count({ where }),
+    ]);
 
     return res.json({
       success: true,
       withdrawals,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (err) {
     console.error("ADMIN ALL WITHDRAWALS ERROR:", err);
-    return res.status(500).json({
-      error: "Failed to fetch withdrawals",
-    });
+    return res.status(500).json({ error: "Failed to fetch withdrawals" });
   }
 });
+
 
 // GET /api/v1/admin/withdrawals/pending
 router.get("/withdrawals/pending", async (req, res) => {
