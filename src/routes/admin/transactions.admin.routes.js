@@ -13,51 +13,46 @@ router.use(requireAuth, requireAdmin);
  */
 router.get("/transactions", async (req, res) => {
   try {
-    const deposits = await prisma.deposit.findMany({
-      include: { user: true },
-      orderBy: { createdAt: "desc" }
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 25);
+    const skip = (page - 1) * limit;
+
+    const [entries, total] = await Promise.all([
+      prisma.ledger.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { email: true } }
+        }
+      }),
+      prisma.ledger.count()
+    ]);
+
+    res.json({
+      success: true,
+      transactions: entries.map(e => ({
+        id: e.id,
+        date: e.createdAt,
+        user: e.user?.email || "System",
+        type: e.type,              // DEPOSIT / WITHDRAWAL / PROFIT
+        amount: Number(e.amount),
+        direction: e.amount < 0 ? "Out" : "In",
+        status: "completed"        // ledger entries are final
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     });
-
-    const withdrawals = await prisma.withdrawal.findMany({
-      include: { user: true },
-      orderBy: { createdAt: "desc" }
-    });
-
-    const ledger = [];
-
-    deposits.forEach(d => {
-      ledger.push({
-        id: d.id,
-        type: "deposit",
-        amount: Number(d.amount),
-        status: d.status,
-        method: d.method,
-        createdAt: d.createdAt,
-        user: { email: d.user.email }
-      });
-    });
-
-    withdrawals.forEach(w => {
-      ledger.push({
-        id: w.id,
-        type: "withdrawal",
-        amount: -Math.abs(Number(w.amount)),
-        status: w.status,
-        method: w.method,
-        createdAt: w.createdAt,
-        user: { email: w.user.email }
-      });
-    });
-
-    ledger.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    res.json({ transactions: ledger });
-
 
   } catch (err) {
     console.error("ADMIN TRANSACTIONS ERROR:", err);
     res.status(500).json({ error: "Failed to load transactions" });
   }
 });
+
 
 export default router;
