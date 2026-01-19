@@ -50,7 +50,6 @@ router.get("/withdrawals", async (req, res) => {
           approvedAt: true,
           createdAt: true,
           updatedAt: true,
-          otpVerified: true, // ✅ THIS IS THE KEY FIX
           user: {
             select: {
               email: true,
