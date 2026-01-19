@@ -60,7 +60,7 @@ router.get("/withdrawals", async (req, res) => {
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
-      });
+      }),
 
       prisma.withdrawal.count({ where }),
     ]);
