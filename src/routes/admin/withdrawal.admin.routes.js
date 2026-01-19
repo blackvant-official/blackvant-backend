@@ -36,13 +36,32 @@ router.get("/withdrawals", async (req, res) => {
     const [withdrawals, total] = await Promise.all([
       prisma.withdrawal.findMany({
         where,
-        include: {
-          user: { select: { email: true } },
+        select: {
+          id: true,
+          userId: true,
+          amount: true,
+          currency: true,
+          source: true,
+          method: true,
+          targetAddress: true,
+          status: true,
+          statusReason: true,
+          reviewedById: true,
+          approvedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          otpVerified: true, // ✅ THIS IS THE KEY FIX
+          user: {
+            select: {
+              email: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
-      }),
+      });
+
       prisma.withdrawal.count({ where }),
     ]);
 
