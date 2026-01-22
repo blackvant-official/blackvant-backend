@@ -34,14 +34,25 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     minDepositAmount,
     minWithdrawAmount,
     withdrawFrequencyDays,
+    // ✅ Platform controls
+    depositsEnabled,
+    withdrawalsEnabled,
+    platformMaintenanceMode,
   } = req.body;
 
-  if (
-    typeof capitalLockEnabled !== "boolean" &&
-    typeof minDepositAmount !== "number"
-  ) {
+  const hasAnyValidField =
+    typeof capitalLockEnabled === "boolean" ||
+    typeof minDepositAmount === "number" ||
+    typeof minWithdrawAmount === "number" ||
+    typeof withdrawFrequencyDays === "number" ||
+    typeof depositsEnabled === "boolean" ||
+    typeof withdrawalsEnabled === "boolean" ||
+    typeof platformMaintenanceMode === "boolean";
+
+  if (!hasAnyValidField) {
     return res.status(400).json({ error: "INVALID_SETTINGS_PAYLOAD" });
   }
+
   
   if (
     typeof minDepositAmount === "number" &&
@@ -68,6 +79,26 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     withdrawFrequencyDays <= 0
   ) {
     return res.status(400).json({ error: "INVALID_WITHDRAW_FREQUENCY" });
+  }
+    if (
+    typeof depositsEnabled !== "undefined" &&
+    typeof depositsEnabled !== "boolean"
+  ) {
+    return res.status(400).json({ error: "INVALID_SETTINGS_PAYLOAD" });
+  }
+
+  if (
+    typeof withdrawalsEnabled !== "undefined" &&
+    typeof withdrawalsEnabled !== "boolean"
+  ) {
+    return res.status(400).json({ error: "INVALID_SETTINGS_PAYLOAD" });
+  }
+
+  if (
+    typeof platformMaintenanceMode !== "undefined" &&
+    typeof platformMaintenanceMode !== "boolean"
+  ) {
+    return res.status(400).json({ error: "INVALID_SETTINGS_PAYLOAD" });
   }
 
   try {
@@ -105,6 +136,30 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
         data: { withdrawFrequencyDays },
       });
     }
+
+    // ================================
+    // PLATFORM CONTROLS (INDEPENDENT)
+    // ================================
+    const platformUpdate = {};
+      
+    if (typeof depositsEnabled === "boolean") {
+      platformUpdate.depositsEnabled = depositsEnabled;
+    }
+    
+    if (typeof withdrawalsEnabled === "boolean") {
+      platformUpdate.withdrawalsEnabled = withdrawalsEnabled;
+    }
+    
+    if (typeof platformMaintenanceMode === "boolean") {
+      platformUpdate.platformMaintenanceMode = platformMaintenanceMode;
+    }
+    
+    if (Object.keys(platformUpdate).length > 0) {
+      await prisma.systemSetting.updateMany({
+        data: platformUpdate,
+      });
+    }
+
 
     res.json({ success: true });
   } catch (err) {
