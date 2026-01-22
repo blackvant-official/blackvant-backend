@@ -1,6 +1,7 @@
 // services/dashboard.service.js
 import prisma from "../utils/prisma.js";
 import { resolveCapitalLockState } from "./capitalLock.service.js";
+import { getSystemSettings } from "./systemSettings.service.js";
 
 /**
  * Resolve internal userId from clerkId
@@ -93,7 +94,7 @@ export async function getDashboardSummary(clerkUserId) {
     todayProfit,
     capitalLocked,
     capitalUnlockAt,
-    platformMaintenanceMode: systemSettings.platformMaintenanceMode,
+    platformMaintenanceMode: !!systemSettings?.platformMaintenanceMode,
   };
 
 }
