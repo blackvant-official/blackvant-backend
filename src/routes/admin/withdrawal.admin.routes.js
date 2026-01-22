@@ -111,6 +111,13 @@ router.post(
     
     try {
       const result = await prisma.$transaction(async (tx) => {
+        // 🔒 PLATFORM MAINTENANCE CHECK
+        const systemSettings = await getSystemSettings();
+              
+        if (systemSettings.platformMaintenanceMode === true) {
+          throw new Error("PLATFORM_MAINTENANCE");
+        }
+
         // 1) Fetch withdrawal
         const withdrawal = await tx.withdrawal.findUnique({
           where: { id: withdrawalId },
@@ -222,6 +229,12 @@ router.post(
       if (err.message === "WITHDRAWAL_NOT_FOUND") {
         return res.status(404).json({ error: "Withdrawal not found" });
       }
+      if (err.message === "PLATFORM_MAINTENANCE") {
+        return res.status(503).json({
+          error: "PLATFORM_MAINTENANCE",
+          message: "Withdrawals are disabled during maintenance mode."
+        });
+      }
       console.error("WITHDRAWAL APPROVAL ERROR:", err);
       return res.status(500).json({ error: "Withdrawal approval failed" });
     }
@@ -240,6 +253,13 @@ router.post(
 
     try {
       await prisma.$transaction(async (tx) => {
+        // 🔒 PLATFORM MAINTENANCE CHECK
+      const systemSettings = await getSystemSettings();
+
+      if (systemSettings.platformMaintenanceMode === true) {
+        throw new Error("PLATFORM_MAINTENANCE");
+      }
+
         // 1️⃣ Fetch withdrawal
         const withdrawal = await tx.withdrawal.findUnique({
           where: { id },
@@ -305,8 +325,12 @@ router.post(
       if (err.message === "ADMIN_USER_NOT_FOUND") {
         return res.status(403).json({ error: "Admin user not found" });
       }
-
-
+      if (err.message === "PLATFORM_MAINTENANCE") {
+        return res.status(503).json({
+          error: "PLATFORM_MAINTENANCE",
+          message: "Withdrawals are disabled during maintenance mode."
+        });
+      }
       console.error("ADMIN REJECT WITHDRAWAL ERROR:", err);
       return res.status(500).json({ error: "Withdrawal rejection failed" });
     }

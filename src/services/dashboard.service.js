@@ -79,8 +79,8 @@ export async function getDashboardSummary(clerkUserId) {
   });
 
 
+  const systemSettings = await getSystemSettings();
   const todayProfit = todayProfitAgg._sum.amount || 0;
-
   const { capitalLocked, capitalUnlockAt } =
     await resolveCapitalLockState();
 
@@ -91,9 +91,9 @@ export async function getDashboardSummary(clerkUserId) {
     activeInvestment: totalBalance - totalProfit,
     totalProfit,
     todayProfit,
-    // Capital lock (read-only exposure)
     capitalLocked,
     capitalUnlockAt,
+    platformMaintenanceMode: systemSettings.platformMaintenanceMode,
   };
 
 }

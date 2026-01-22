@@ -79,6 +79,16 @@ router.post(
   async (req, res) => {
   const depositId = req.params.id;
 
+  // 🔒 PLATFORM MAINTENANCE CHECK
+  const systemSettings = await getSystemSettings();
+
+  if (systemSettings.platformMaintenanceMode === true) {
+    return res.status(503).json({
+      error: "PLATFORM_MAINTENANCE",
+      message: "Deposit approvals are disabled during maintenance mode."
+    });
+  }
+
   try {
     // 1️⃣ Fetch deposit
     const deposit = await prisma.deposit.findUnique({
