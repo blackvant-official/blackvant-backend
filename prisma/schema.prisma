@@ -279,6 +279,10 @@ model SystemSetting {
   minDepositAmount        Decimal?
   minWithdrawAmount       Decimal?
   withdrawFrequencyDays   Int?
+  depositsEnabled           Boolean @default(true)
+  withdrawalsEnabled        Boolean @default(true)
+  platformMaintenanceMode   Boolean @default(false)
+
 
   // Audit only (no Prisma relation on purpose)
   updatedByAdminId        String?
