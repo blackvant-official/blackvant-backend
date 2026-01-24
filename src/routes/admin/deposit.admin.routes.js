@@ -5,6 +5,7 @@ import { requireAuth,  } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 import { getSystemSettings } from "../../services/systemSettings.service.js";
+import { signGetUrl } from "../../services/s3.js";
 
 // ================================
 // STATUS NORMALIZATION (ADMIN DEPOSITS)
@@ -60,6 +61,50 @@ router.get("/deposits", async (req, res) => {
   }
 });
 
+// ============================================
+// GET DEPOSIT PROOF URL (ADMIN ONLY)
+// ============================================
+router.get(
+  "/deposits/:id/proof-url",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const depositId = req.params.id;
+
+      // 1️⃣ Fetch deposit (proof only)
+      const deposit = await prisma.deposit.findUnique({
+        where: { id: depositId },
+        select: {
+          proofKey: true,
+        },
+      });
+
+      if (!deposit) {
+        return res.status(404).json({
+          error: "DEPOSIT_NOT_FOUND",
+        });
+      }
+
+      if (!deposit.proofKey) {
+        return res.status(404).json({
+          error: "PROOF_NOT_FOUND",
+        });
+      }
+
+      // 2️⃣ Generate short-lived signed S3 URL (30 seconds)
+      const url = await signGetUrl(deposit.proofKey);
+
+      // 3️⃣ Return URL only (no metadata)
+      return res.json({ url });
+
+    } catch (err) {
+      console.error("ADMIN PROOF URL ERROR:", err);
+      return res.status(500).json({
+        error: "FAILED_TO_GENERATE_PROOF_URL",
+      });
+    }
+  }
+);
 
 // POST /api/v1/admin/deposits/:id/approve
 
