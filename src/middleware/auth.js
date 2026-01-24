@@ -62,15 +62,37 @@ function requireAuth(req, res, next) {
                 let user = await prisma.user.findUnique({
                   where: { clerkId: clerkUserId }
                 });
-              
+                
                 if (!user) {
-                  user = await prisma.user.create({
-                    data: {
-                      clerkId: clerkUserId,
-                      email,
-                    },
-                  });
+                  try {
+                    user = await prisma.user.create({
+                      data: {
+                        clerkId: clerkUserId,
+                        email,
+                      },
+                    });
+                  } catch (err) {
+                    // 🔐 Email already exists → attach clerkId to existing user
+                    if (err.code === "P2002") {
+                      user = await prisma.user.findUnique({
+                        where: { email },
+                      });
+                    
+                      if (!user) {
+                        throw err; // unexpected
+                      }
+                    
+                      // OPTIONAL: link clerkId if missing
+                      await prisma.user.update({
+                        where: { id: user.id },
+                        data: { clerkId: clerkUserId },
+                      });
+                    } else {
+                      throw err;
+                    }
+                  }
                 }
+
               
                 req.userContext = {
                   clerkUserId,
