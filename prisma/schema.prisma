@@ -237,6 +237,7 @@ model Ledger {
 
   referenceType String   // DEPOSIT | WITHDRAWAL | PROFIT
   referenceId   String   // depositId / withdrawalId / payoutId
+  bucket        LedgerBucket
 
   createdAt     DateTime @default(now())
 
@@ -309,4 +310,9 @@ model WithdrawalOtp {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+enum LedgerBucket {
+  CAPITAL
+  PROFIT
 }
