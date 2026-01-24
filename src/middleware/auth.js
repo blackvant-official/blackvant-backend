@@ -67,8 +67,9 @@ function requireAuth(req, res, next) {
                   user = await prisma.user.create({
                     data: {
                       clerkId: clerkUserId,
-                      email
-                    }
+                      email,
+                      fullName,
+                    },
                   });
                 }
               

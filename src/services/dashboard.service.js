@@ -100,13 +100,32 @@ export async function getDashboardSummary(clerkUserId) {
     totalBalance,
     availableBalance,
     lockedBalance,
-    activeInvestment: totalBalance - totalProfit,
+    activeInvestment:
+      (await prisma.ledger.aggregate({
+        where: {
+          userId,
+          direction: "CREDIT",
+          bucket: "CAPITAL"
+        },
+        _sum: { amount: true }
+      }))._sum.amount || 0
+      -
+      (await prisma.ledger.aggregate({
+        where: {
+          userId,
+          direction: "DEBIT",
+          bucket: "CAPITAL"
+        },
+        _sum: { amount: true }
+      }))._sum.amount || 0,
+    
     totalProfit,
     todayProfit,
     capitalLocked,
     capitalUnlockAt,
     platformMaintenanceMode: !!systemSettings?.platformMaintenanceMode,
   };
+
 
 }
 
