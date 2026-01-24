@@ -204,9 +204,9 @@ router.post("/profit/distribute", async (req, res) => {
         // 1. Create ledger CREDIT entry
         const ledgerEntry = await tx.ledger.create({
           data: {
-            userId,
-            amount: profitAmount,
-            direction: "credit",
+            userId: payout.userId,
+            amount: payout.profitAmount,
+            direction: "CREDIT",
             bucket: "PROFIT",
             referenceType: "PROFIT",
             referenceId: payout.id,
