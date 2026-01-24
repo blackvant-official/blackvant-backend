@@ -5,7 +5,7 @@ import { requireAuth,  } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 import { getSystemSettings } from "../../services/systemSettings.service.js";
-import { signGetUrl } from "../../services/s3.js";
+import { signGetUrl } from "../../utils/s3.js";
 
 // ================================
 // STATUS NORMALIZATION (ADMIN DEPOSITS)
