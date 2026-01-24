@@ -304,29 +304,29 @@ router.post(
     }
 
 
-    
-    // -------------------------------
-// LEDGER-BASED WITHDRAWAL CHECK
+// -------------------------------
+// LEDGER-BASED WITHDRAWAL CHECK (BUCKET-AWARE)
 // -------------------------------
 
-// Sum CREDIT entries
+const bucket = source === "profit" ? "PROFIT" : "CAPITAL";
+
 const creditAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
     direction: "credit",
+    bucket,
   },
   _sum: { amount: true },
 });
 
-// Sum DEBIT entries
 const debitAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
     direction: "debit",
+    bucket,
   },
   _sum: { amount: true },
 });
-
 
 const totalCredits = creditAgg._sum.amount || new Prisma.Decimal(0);
 const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
@@ -335,9 +335,14 @@ const availableBalance = totalCredits.minus(totalDebits);
 
 if (requestedAmount.gt(availableBalance)) {
   return res.status(403).json({
-    error: "Insufficient available balance",
+    error: "INSUFFICIENT_BALANCE",
+    message:
+      source === "profit"
+        ? "Insufficient profit balance for this withdrawal."
+        : "Insufficient capital balance for this withdrawal.",
   });
 }
+
 
 // ==============================
 // Capital Lock Enforcement
