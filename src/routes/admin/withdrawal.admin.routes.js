@@ -163,6 +163,7 @@ router.post(
           where: {
             userId: withdrawal.userId,
             direction: "CREDIT",
+            bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
           },
           _sum: { amount: true },
         });
@@ -171,6 +172,7 @@ router.post(
           where: {
             userId: withdrawal.userId,
             direction: "DEBIT",
+            bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
           },
           _sum: { amount: true },
         });
@@ -197,25 +199,12 @@ router.post(
               userId: withdrawal.userId,
               amount: withdrawal.amount,
               direction: "DEBIT",
-              type: "WITHDRAW_PROFIT",
-              referenceType: "WITHDRAWAL",
-              referenceId: withdrawal.id,
-            },
-          });
-        } else {
-          // Debit CAPITAL balance (default & fallback)
-          await tx.ledger.create({
-            data: {
-              userId: withdrawal.userId,
-              amount: withdrawal.amount,
-              direction: "DEBIT",
-              type: "WITHDRAW_CAPITAL",
+              bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
               referenceType: "WITHDRAWAL",
               referenceId: withdrawal.id,
             },
           });
         }
-
 
         // 6) Update withdrawal status
         console.log("ADMIN INTERNAL ID:", adminUser.id);
