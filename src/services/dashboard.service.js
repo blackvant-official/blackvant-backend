@@ -53,17 +53,28 @@ export async function getDashboardSummary(clerkUserId) {
   const availableBalance = totalBalance - lockedBalance;
 
   // --- PROFIT ---
-  const profitAgg = await prisma.ledger.aggregate({
+    const profitCreditAgg = await prisma.ledger.aggregate({
     where: {
       userId,
       direction: "CREDIT",
-      referenceType: "PROFIT"
+      bucket: "PROFIT"
     },
     _sum: { amount: true }
   });
+  
+  const profitDebitAgg = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "DEBIT",
+      bucket: "PROFIT"
+    },
+    _sum: { amount: true }
+  });
+  
+  const totalProfit =
+    (profitCreditAgg._sum.amount || 0) -
+    (profitDebitAgg._sum.amount || 0);
 
-
-  const totalProfit = profitAgg._sum.amount || 0;
 
   // --- TODAY PROFIT (UTC) ---
   const today = new Date();

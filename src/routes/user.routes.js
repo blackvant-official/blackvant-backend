@@ -36,10 +36,6 @@ router.get("/me", requireAuth, async (req, res) => {
       id: user.id,
       email: user.email,
       role: user.role,
-      balances: {
-        investment: Number(user.investmentBalance),
-        profit: Number(user.profitBalance),
-      },
     });
 
   } catch (err) {
