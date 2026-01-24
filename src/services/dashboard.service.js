@@ -34,8 +34,8 @@ export async function getDashboardSummary(clerkUserId) {
     _sum: { amount: true }
   });
 
-  const totalCredits = creditAgg._sum.amount || 0;
-  const totalDebits = debitAgg._sum.amount || 0;
+  const totalCredits = Number(creditAgg?._sum?.amount || 0);
+  const totalDebits = Number(debitAgg?._sum?.amount || 0);
 
   const totalBalance = totalCredits - totalDebits;
 
@@ -49,7 +49,7 @@ export async function getDashboardSummary(clerkUserId) {
   });
 
 
-  const lockedBalance = lockedAgg._sum.amount || 0;
+  const lockedBalance = Number(lockedAgg?._sum?.amount || 0);
   const availableBalance = totalBalance - lockedBalance;
 
   // --- PROFIT ---
@@ -72,8 +72,8 @@ export async function getDashboardSummary(clerkUserId) {
   });
   
   const totalProfit =
-    (profitCreditAgg._sum.amount || 0) -
-    (profitDebitAgg._sum.amount || 0);
+    Number(profitCreditAgg?._sum?.amount || 0) -
+    Number(profitDebitAgg?._sum?.amount || 0);
 
 
   // --- TODAY PROFIT (UTC) ---
@@ -84,7 +84,7 @@ export async function getDashboardSummary(clerkUserId) {
     where: {
       userId,
       direction: "CREDIT",
-      referenceType: "PROFIT",
+      bucket: "PROFIT",
       createdAt: { gte: today }
     },
     _sum: { amount: true }
@@ -92,33 +92,40 @@ export async function getDashboardSummary(clerkUserId) {
 
 
   const systemSettings = await getSystemSettings();
-  const todayProfit = todayProfitAgg._sum.amount || 0;
-  const { capitalLocked, capitalUnlockAt } =
-    await resolveCapitalLockState();
+  const todayProfit = Number(todayProfitAgg?._sum?.amount || 0);
+  const lockState = await resolveCapitalLockState().catch(() => null);
+
+  const capitalLocked = Boolean(lockState?.capitalLocked);
+  const capitalUnlockAt = lockState?.capitalUnlockAt || null;
+  // --- CAPITAL (SAFE AGGREGATION) ---
+  const capitalCreditAgg = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "CREDIT",
+      bucket: "CAPITAL"
+    },
+    _sum: { amount: true }
+  });
+  
+  const capitalDebitAgg = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "DEBIT",
+      bucket: "CAPITAL"
+    },
+    _sum: { amount: true }
+  });
+  
+  const activeInvestment =
+    Number(capitalCreditAgg?._sum?.amount || 0) -
+    Number(capitalDebitAgg?._sum?.amount || 0);
+
 
   return {
     totalBalance,
     availableBalance,
     lockedBalance,
-    activeInvestment:
-      (await prisma.ledger.aggregate({
-        where: {
-          userId,
-          direction: "CREDIT",
-          bucket: "CAPITAL"
-        },
-        _sum: { amount: true }
-      }))._sum.amount || 0
-      -
-      (await prisma.ledger.aggregate({
-        where: {
-          userId,
-          direction: "DEBIT",
-          bucket: "CAPITAL"
-        },
-        _sum: { amount: true }
-      }))._sum.amount || 0,
-    
+    activeInvestment,    
     totalProfit,
     todayProfit,
     capitalLocked,
