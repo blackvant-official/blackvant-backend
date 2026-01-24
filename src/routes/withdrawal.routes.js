@@ -268,8 +268,11 @@ router.post(
       if (new Date() < nextAllowedAt) {
         return res.status(429).json({
           error: "WITHDRAW_FREQUENCY_LIMIT",
-          nextAllowedAt,
-          frequencyDays,
+          message: JSON.stringify({
+            error: "WITHDRAW_FREQUENCY_LIMIT",
+            nextAllowedAt,
+            frequencyDays
+          })
         });
       }
     }
