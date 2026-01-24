@@ -251,31 +251,58 @@ router.post(
       });
     }
 
-    // Frequency enforcement (creation-based, ledger untouched)
-    const lastWithdrawal = await prisma.withdrawal.findFirst({
+    // ================================
+    // WITHDRAW FREQUENCY (CALENDAR-BASED)
+    // ================================
+    const now = new Date();
+    let periodStart;
+    let periodLabel;
+      
+    // Daily limit
+    if (frequencyDays === 1) {
+      periodStart = new Date(now);
+      periodStart.setHours(0, 0, 0, 0);
+      periodLabel = "day";
+    }
+    // Weekly limit (7 days)
+    else if (frequencyDays === 7) {
+      periodStart = new Date(now);
+      const day = periodStart.getDay(); // 0 = Sunday
+      periodStart.setDate(periodStart.getDate() - day);
+      periodStart.setHours(0, 0, 0, 0);
+      periodLabel = "week";
+    }
+    // Fallback (rare)
+    else {
+      periodStart = new Date(now);
+      periodStart.setDate(periodStart.getDate() - frequencyDays);
+      periodLabel = `${frequencyDays} days`;
+    }
+    
+    const withdrawalInPeriod = await prisma.withdrawal.findFirst({
       where: {
         userId: user.id,
-        status: { in: ["PENDING", "APPROVED"] }
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-
-    if (lastWithdrawal) {
-      const nextAllowedAt = new Date(lastWithdrawal.createdAt);
-      nextAllowedAt.setDate(nextAllowedAt.getDate() + frequencyDays);
-    
-      if (new Date() < nextAllowedAt) {
-        return res.status(429).json({
-          error: "WITHDRAW_FREQUENCY_LIMIT",
-          message: JSON.stringify({
-            error: "WITHDRAW_FREQUENCY_LIMIT",
-            nextAllowedAt,
-            frequencyDays
-          })
-        });
+        status: { in: ["PENDING", "APPROVED"] },
+        createdAt: { gte: periodStart }
       }
+    });
+    
+    if (withdrawalInPeriod) {
+      return res.status(429).json({
+        error: "WITHDRAW_FREQUENCY_LIMIT",
+        details: {
+          frequencyDays,
+          periodLabel,
+          nextAllowedAt:
+            frequencyDays === 1
+              ? new Date(periodStart.getTime() + 24 * 60 * 60 * 1000)
+              : frequencyDays === 7
+                ? new Date(periodStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+                : null
+        }
+      });
     }
+
 
     
     // -------------------------------
