@@ -313,7 +313,7 @@ router.post(
 const creditAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
-    direction: "CREDIT",
+    direction: "credit",
   },
   _sum: { amount: true },
 });
@@ -322,7 +322,7 @@ const creditAgg = await prisma.ledger.aggregate({
 const debitAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
-    direction: "DEBIT",
+    direction: "debit",
   },
   _sum: { amount: true },
 });
