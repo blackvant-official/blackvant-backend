@@ -313,7 +313,7 @@ const bucket = source === "profit" ? "PROFIT" : "CAPITAL";
 const creditAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
-    direction: "credit",
+    direction: "CREDIT",
     bucket,
   },
   _sum: { amount: true },
@@ -322,7 +322,7 @@ const creditAgg = await prisma.ledger.aggregate({
 const debitAgg = await prisma.ledger.aggregate({
   where: {
     userId: user.id,
-    direction: "debit",
+    direction: "DEBIT",
     bucket,
   },
   _sum: { amount: true },

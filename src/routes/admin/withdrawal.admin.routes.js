@@ -162,7 +162,7 @@ router.post(
         const creditAgg = await tx.ledger.aggregate({
           where: {
             userId: withdrawal.userId,
-            direction: "credit",
+            direction: "CREDIT",
             bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
           },
           _sum: { amount: true },
@@ -171,7 +171,7 @@ router.post(
         const debitAgg = await tx.ledger.aggregate({
           where: {
             userId: withdrawal.userId,
-            direction: "debit",
+            direction: "DEBIT",
             bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
           },
           _sum: { amount: true },
