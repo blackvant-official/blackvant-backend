@@ -149,8 +149,10 @@ router.post(
           where: {
             referenceType: "WITHDRAWAL",
             referenceId: withdrawal.id,
+            direction: "DEBIT",
           },
         });
+
 
         if (existingLedger) {
           throw new Error("LEDGER_ALREADY_EXISTS");
@@ -177,14 +179,17 @@ router.post(
         const totalDebits = debitAgg._sum.amount || new Prisma.Decimal(0);
         const availableBalance = totalCredits.minus(totalDebits);
 
-        if (availableBalance.lt(withdrawal.amount)) {
-          throw new Error("INSUFFICIENT_BALANCE");
-        }
+        const withdrawalAmount = new Prisma.Decimal(withdrawal.amount);
+
+      if (availableBalance.lt(withdrawalAmount)) {
+        throw new Error("INSUFFICIENT_BALANCE");
+      }
+
 
         // =======================================
         // SOURCE-AWARE WITHDRAWAL LEDGER DEBIT
         // =======================================
-              
+
         if (withdrawal.source === "profit") {
           // Debit PROFIT balance
           await tx.ledger.create({
