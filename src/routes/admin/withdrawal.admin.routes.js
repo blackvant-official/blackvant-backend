@@ -181,16 +181,36 @@ router.post(
           throw new Error("INSUFFICIENT_BALANCE");
         }
 
-        // 5) Write ONE ledger DEBIT (amount is POSITIVE)
-        await tx.ledger.create({
-          data: {
-            userId: withdrawal.userId,
-            amount: withdrawal.amount,
-            direction: "DEBIT",
-            referenceType: "WITHDRAWAL",
-            referenceId: withdrawal.id,
-          },
-        });
+        // =======================================
+        // SOURCE-AWARE WITHDRAWAL LEDGER DEBIT
+        // =======================================
+              
+        if (withdrawal.source === "profit") {
+          // Debit PROFIT balance
+          await tx.ledger.create({
+            data: {
+              userId: withdrawal.userId,
+              amount: withdrawal.amount,
+              direction: "DEBIT",
+              type: "WITHDRAW_PROFIT",
+              referenceType: "WITHDRAWAL",
+              referenceId: withdrawal.id,
+            },
+          });
+        } else {
+          // Debit CAPITAL balance (default & fallback)
+          await tx.ledger.create({
+            data: {
+              userId: withdrawal.userId,
+              amount: withdrawal.amount,
+              direction: "DEBIT",
+              type: "WITHDRAW_CAPITAL",
+              referenceType: "WITHDRAWAL",
+              referenceId: withdrawal.id,
+            },
+          });
+        }
+
 
         // 6) Update withdrawal status
         console.log("ADMIN INTERNAL ID:", adminUser.id);
