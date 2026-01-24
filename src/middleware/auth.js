@@ -68,7 +68,6 @@ function requireAuth(req, res, next) {
                     data: {
                       clerkId: clerkUserId,
                       email,
-                      fullName,
                     },
                   });
                 }
