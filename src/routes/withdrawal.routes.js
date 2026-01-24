@@ -253,9 +253,13 @@ router.post(
 
     // Frequency enforcement (creation-based, ledger untouched)
     const lastWithdrawal = await prisma.withdrawal.findFirst({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        status: { in: ["PENDING", "APPROVED"] }
+      },
       orderBy: { createdAt: "desc" },
     });
+
 
     if (lastWithdrawal) {
       const nextAllowedAt = new Date(lastWithdrawal.createdAt);
