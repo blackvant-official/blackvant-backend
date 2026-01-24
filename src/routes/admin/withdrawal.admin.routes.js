@@ -163,7 +163,9 @@ router.post(
           where: {
             userId: withdrawal.userId,
             direction: "CREDIT",
-            bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
+            bucket: withdrawal.source === "profit"
+              ? "PROFIT"
+              : "CAPITAL",
           },
           _sum: { amount: true },
         });
@@ -172,7 +174,9 @@ router.post(
           where: {
             userId: withdrawal.userId,
             direction: "DEBIT",
-            bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
+            bucket: withdrawal.source === "profit"
+              ? "PROFIT"
+              : "CAPITAL",
           },
           _sum: { amount: true },
         });
@@ -199,7 +203,9 @@ router.post(
               userId: withdrawal.userId,
               amount: withdrawal.amount,
               direction: "DEBIT",
-              bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
+              bucket: withdrawal.source === "profit"
+                ? "PROFIT"
+                : "CAPITAL",
               referenceType: "WITHDRAWAL",
               referenceId: withdrawal.id,
             },

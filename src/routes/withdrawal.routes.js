@@ -282,8 +282,8 @@ router.post(
     const withdrawalInPeriod = await prisma.withdrawal.findFirst({
       where: {
         userId: user.id,
-        status: { in: ["PENDING", "APPROVED"] },
-        createdAt: { gte: periodStart }
+        status: "APPROVED",
+        approvedAt: { gte: periodStart }
       }
     });
     
