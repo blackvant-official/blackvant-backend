@@ -196,21 +196,21 @@ router.post(
         // SOURCE-AWARE WITHDRAWAL LEDGER DEBIT
         // =======================================
 
-        if (withdrawal.source === "profit") {
-          // Debit PROFIT balance
-          await tx.ledger.create({
-            data: {
-              userId: withdrawal.userId,
-              amount: withdrawal.amount,
-              direction: "DEBIT",
-              bucket: withdrawal.source === "profit"
-                ? "PROFIT"
-                : "CAPITAL",
-              referenceType: "WITHDRAWAL",
-              referenceId: withdrawal.id,
-            },
-          });
-        }
+        // =======================================
+        // SOURCE-AWARE WITHDRAWAL LEDGER DEBIT
+        // =======================================
+            
+        await tx.ledger.create({
+          data: {
+            userId: withdrawal.userId,
+            amount: withdrawal.amount,
+            direction: "DEBIT",
+            bucket: withdrawal.source === "profit" ? "PROFIT" : "CAPITAL",
+            referenceType: "WITHDRAWAL",
+            referenceId: withdrawal.id,
+          },
+        });
+
 
         // 6) Update withdrawal status
         console.log("ADMIN INTERNAL ID:", adminUser.id);
