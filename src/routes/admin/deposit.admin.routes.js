@@ -172,10 +172,12 @@ router.post(
           userId: deposit.userId,
           amount: deposit.amount,
           direction: "CREDIT",
+          bucket: "CAPITAL",          // ✅ REQUIRED
           referenceType: "DEPOSIT",
           referenceId: deposit.id,
         },
       }),
+
 
       prisma.deposit.update({
         where: { id: deposit.id },
