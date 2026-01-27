@@ -133,6 +133,7 @@ export async function getDashboardSummary(clerkUserId) {
     capitalLocked,
     capitalUnlockAt,
     platformMaintenanceMode: !!systemSettings?.platformMaintenanceMode,
+    withdrawFrequencyEnabled: settings.withdrawFrequencyEnabled !== false,
   };
 
 
