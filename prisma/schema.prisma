@@ -283,6 +283,7 @@ model SystemSetting {
   depositsEnabled           Boolean @default(true)
   withdrawalsEnabled        Boolean @default(true)
   platformMaintenanceMode   Boolean @default(false)
+  withdrawFrequencyEnabled  Boolean @default(true)
 
 
   // Audit only (no Prisma relation on purpose)

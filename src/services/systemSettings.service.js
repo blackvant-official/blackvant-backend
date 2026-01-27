@@ -46,3 +46,8 @@ export async function getWithdrawFrequencyDays() {
   const value = Number(settings?.withdrawFrequencyDays);
   return Number.isFinite(value) && value > 0 ? value : 7;
 }
+export async function isWithdrawFrequencyEnabled() {
+  const settings = await prisma.systemSetting.findFirst();
+  return settings?.withdrawFrequencyEnabled !== false;
+}
+

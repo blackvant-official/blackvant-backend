@@ -7,7 +7,9 @@ import { resolveCapitalLockState } from "../services/capitalLock.service.js";
 import {
   getMinWithdrawAmount,
   getWithdrawFrequencyDays,
+  isWithdrawFrequencyEnabled,
 } from "../services/systemSettings.service.js";
+
 import {
   generateOtp,
   hashOtp,
@@ -251,58 +253,60 @@ router.post(
       });
     }
 
-    // ================================
-    // WITHDRAW FREQUENCY (CALENDAR-BASED)
-    // ================================
-    const now = new Date();
-    let periodStart;
-    let periodLabel;
-      
-    // Daily limit
-    if (frequencyDays === 1) {
-      periodStart = new Date(now);
-      periodStart.setHours(0, 0, 0, 0);
-      periodLabel = "day";
-    }
-    // Weekly limit (7 days)
-    else if (frequencyDays === 7) {
-      periodStart = new Date(now);
-      const day = periodStart.getDay(); // 0 = Sunday
-      periodStart.setDate(periodStart.getDate() - day);
-      periodStart.setHours(0, 0, 0, 0);
-      periodLabel = "week";
-    }
-    // Fallback (rare)
-    else {
-      periodStart = new Date(now);
-      periodStart.setDate(periodStart.getDate() - frequencyDays);
-      periodLabel = `${frequencyDays} days`;
-    }
-    
-    const withdrawalInPeriod = await prisma.withdrawal.findFirst({
-      where: {
-        userId: user.id,
-        status: "APPROVED",
-        approvedAt: { gte: periodStart }
+    const frequencyEnabled = await isWithdrawFrequencyEnabled();
+    if (frequencyEnabled) {
+      // ================================
+      // WITHDRAW FREQUENCY (CALENDAR-BASED)
+      // ================================
+      const now = new Date();
+      let periodStart;
+      let periodLabel;
+        
+      // Daily limit
+      if (frequencyDays === 1) {
+        periodStart = new Date(now);
+        periodStart.setHours(0, 0, 0, 0);
+        periodLabel = "day";
       }
-    });
-    
-    if (withdrawalInPeriod) {
-      return res.status(429).json({
-        error: "WITHDRAW_FREQUENCY_LIMIT",
-        details: {
-          frequencyDays,
-          periodLabel,
-          nextAllowedAt:
-            frequencyDays === 1
-              ? new Date(periodStart.getTime() + 24 * 60 * 60 * 1000)
-              : frequencyDays === 7
-                ? new Date(periodStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-                : null
+      // Weekly limit (7 days)
+      else if (frequencyDays === 7) {
+        periodStart = new Date(now);
+        const day = periodStart.getDay(); // 0 = Sunday
+        periodStart.setDate(periodStart.getDate() - day);
+        periodStart.setHours(0, 0, 0, 0);
+        periodLabel = "week";
+      }
+      // Fallback (rare)
+      else {
+        periodStart = new Date(now);
+        periodStart.setDate(periodStart.getDate() - frequencyDays);
+        periodLabel = `${frequencyDays} days`;
+      }
+      
+      const withdrawalInPeriod = await prisma.withdrawal.findFirst({
+        where: {
+          userId: user.id,
+          status: "APPROVED",
+          approvedAt: { gte: periodStart }
         }
       });
+      
+      if (withdrawalInPeriod) {
+        return res.status(429).json({
+          error: "WITHDRAW_FREQUENCY_LIMIT",
+          details: {
+            frequencyDays,
+            periodLabel,
+            nextAllowedAt:
+              frequencyDays === 1
+                ? new Date(periodStart.getTime() + 24 * 60 * 60 * 1000)
+                : frequencyDays === 7
+                  ? new Date(periodStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+                  : null
+          }
+        });
+      }
     }
-
 
 // -------------------------------
 // LEDGER-BASED WITHDRAWAL CHECK (BUCKET-AWARE)

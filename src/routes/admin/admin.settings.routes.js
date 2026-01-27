@@ -34,11 +34,12 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     minDepositAmount,
     minWithdrawAmount,
     withdrawFrequencyDays,
-    // ✅ Platform controls
+    withdrawFrequencyEnabled,
     depositsEnabled,
     withdrawalsEnabled,
     platformMaintenanceMode,
   } = req.body;
+
 
   const hasAnyValidField =
     typeof capitalLockEnabled === "boolean" ||
@@ -47,6 +48,7 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
     typeof withdrawFrequencyDays === "number" ||
     typeof depositsEnabled === "boolean" ||
     typeof withdrawalsEnabled === "boolean" ||
+    typeof withdrawFrequencyEnabled === "boolean" ||
     typeof platformMaintenanceMode === "boolean";
 
   if (!hasAnyValidField) {
@@ -135,6 +137,11 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
       await prisma.systemSetting.updateMany({
         data: { withdrawFrequencyDays },
       });
+    if (typeof withdrawFrequencyEnabled === "boolean") {
+      await prisma.systemSetting.updateMany({
+        data: { withdrawFrequencyEnabled },
+      });
+    }
     }
 
     // ================================
