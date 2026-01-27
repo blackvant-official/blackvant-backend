@@ -136,7 +136,7 @@ const activeInvestment =
     capitalLocked,
     capitalUnlockAt,
     platformMaintenanceMode: !!systemSettings?.platformMaintenanceMode,
-    withdrawFrequencyEnabled: settings.withdrawFrequencyEnabled !== false,
+    withdrawFrequencyEnabled: systemSettings?.withdrawFrequencyEnabled !== false,
   };
 
 
