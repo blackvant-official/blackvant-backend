@@ -97,31 +97,34 @@ export async function getDashboardSummary(clerkUserId) {
 
   const capitalLocked = Boolean(lockState?.capitalLocked);
   const capitalUnlockAt = lockState?.capitalUnlockAt || null;
-  // --- CAPITAL (SAFE AGGREGATION) ---
-  // --- CAPITAL (LEDGER-TRUTHFUL) ---
-  const capitalCreditAgg = await prisma.ledger.aggregate({
-    where: {
-      userId,
-      bucket: "CAPITAL",
-      direction: "CREDIT",
-    },
-    _sum: { amount: true },
-  });
-  
-  const capitalDebitAgg = await prisma.ledger.aggregate({
-    where: {
-      userId,
-      bucket: "CAPITAL",
-      direction: "DEBIT",
-    },
-    _sum: { amount: true },
-  });
-  
-  const activeInvestment =
-    Number(capitalCreditAgg._sum.amount || 0) -
-    Number(capitalDebitAgg._sum.amount || 0);
+// ==============================
+// CAPITAL = DEPOSITS - CAPITAL WITHDRAWALS ONLY
+// ==============================
 
+const capitalCreditAgg = await prisma.ledger.aggregate({
+  where: {
+    userId,
+    direction: "CREDIT",
+    bucket: "CAPITAL",
+    referenceType: "DEPOSIT" // 🔒 IMPORTANT
+  },
+  _sum: { amount: true }
+});
 
+const capitalDebitAgg = await prisma.ledger.aggregate({
+  where: {
+    userId,
+    direction: "DEBIT",
+    bucket: "CAPITAL",
+    referenceType: "WITHDRAWAL"
+  },
+  _sum: { amount: true }
+});
+
+const activeInvestment =
+  Number(capitalCreditAgg._sum.amount || 0) -
+  Number(capitalDebitAgg._sum.amount || 0);
+// ==============================
 
   return {
     totalBalance,
