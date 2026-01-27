@@ -7,50 +7,52 @@ const router = express.Router();
 router.use(requireAuth, requireAdmin);
 
 async function getActiveInvestmentSnapshot(prisma) {
-  const ledgerEntries = await prisma.ledger.findMany({
+  const credits = await prisma.ledger.groupBy({
+    by: ["userId"],
     where: {
-      referenceType: {
-        in: ["DEPOSIT", "WITHDRAWAL"],
-      },
+      bucket: "CAPITAL",
+      direction: "CREDIT",
     },
-    select: {
-      userId: true,
-      amount: true,
-      direction: true,
-    },
+    _sum: { amount: true },
   });
 
-  const perUser = new Map();
+  const debits = await prisma.ledger.groupBy({
+    by: ["userId"],
+    where: {
+      bucket: "CAPITAL",
+      direction: "DEBIT",
+    },
+    _sum: { amount: true },
+  });
 
-  for (const entry of ledgerEntries) {
-    const prev = perUser.get(entry.userId) || 0;
-    const delta =
-      entry.direction === "CREDIT"
-        ? Number(entry.amount)
-        : -Number(entry.amount);
+  const debitMap = new Map(
+    debits.map(d => [d.userId, Number(d._sum.amount || 0)])
+  );
 
-    perUser.set(entry.userId, prev + delta);
-  }
-
-  const activeUsers = [];
+  const users = [];
   let totalInvestment = 0;
 
-  for (const [userId, amount] of perUser.entries()) {
-    if (amount > 0) {
-      activeUsers.push({
-        userId,
-        investment: amount,
+  for (const c of credits) {
+    const credit = Number(c._sum.amount || 0);
+    const debit = debitMap.get(c.userId) || 0;
+    const investment = credit - debit;
+
+    if (investment > 0) {
+      users.push({
+        userId: c.userId,
+        investment,
       });
-      totalInvestment += amount;
+      totalInvestment += investment;
     }
   }
 
   return {
-    users: activeUsers,
+    users,
     totalInvestment,
-    recipientsCount: activeUsers.length,
+    recipientsCount: users.length,
   };
 }
+
 
 function calculateProfitDistribution(snapshot, distributionPercent) {
   const results = [];
