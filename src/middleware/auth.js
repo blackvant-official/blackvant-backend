@@ -4,14 +4,10 @@ const prisma = new PrismaClient();
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
-const devJwksClient = jwksClient({
-  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
-});
 
 const prodJwksClient = jwksClient({
   jwksUri: "https://clerk.blackvant.com/.well-known/jwks.json",
 });
-
 
 function getKeyWith(client) {
   return function (header, callback) {
@@ -60,16 +56,7 @@ function requireAuth(req, res, next) {
         prodJwksClient
       );
     } catch (prodErr) {
-      try {
-        // 🔁 FALLBACK TO DEV
-        decoded = await verifyWith(
-          "https://comic-kangaroo-23.clerk.accounts.dev",
-          devJwksClient
-        );
-      } catch (devErr) {
-        console.error("JWT verification failed:", devErr.message);
-        return res.status(401).json({ error: "Invalid token" });
-      }
+      return res.status(401).json({ error: "Invalid token" });
     }
 
     // 🔒 EVERYTHING BELOW IS YOUR ORIGINAL LOGIC (UNCHANGED)
@@ -139,9 +126,5 @@ function requireAuth(req, res, next) {
   })();
 }
 
-
-
 export { requireAuth };
 export default requireAuth;
-
-
