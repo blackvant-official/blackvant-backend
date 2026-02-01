@@ -4,16 +4,6 @@ const prisma = new PrismaClient();
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
-const { clerkClient } = require("@clerk/clerk-sdk-node");
-
-async function verifyClerkTokenWith(secretKey, issuer, token) {
-  clerkClient.setSecretKey(secretKey);
-
-  return clerkClient.verifyToken(token, {
-    issuer,
-  });
-}
-
 const devJwksClient = jwksClient({
   jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
 });
