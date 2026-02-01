@@ -4,15 +4,32 @@ const prisma = new PrismaClient();
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
-const client = jwksClient({
+const { clerkClient } = require("@clerk/clerk-sdk-node");
+
+async function verifyClerkTokenWith(secretKey, issuer, token) {
+  clerkClient.setSecretKey(secretKey);
+
+  return clerkClient.verifyToken(token, {
+    issuer,
+  });
+}
+
+const devJwksClient = jwksClient({
   jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
 });
 
-function getKey(header, callback) {
-  client.getSigningKey(header.kid, (err, key) => {
-    if (err) return callback(err);
-    callback(null, key.getPublicKey());
-  });
+const prodJwksClient = jwksClient({
+  jwksUri: "https://clerk.blackvant.com/.well-known/jwks.json",
+});
+
+
+function getKeyWith(client) {
+  return function (header, callback) {
+    client.getSigningKey(header.kid, (err, key) => {
+      if (err) return callback(err);
+      callback(null, key.getPublicKey());
+    });
+  };
 }
 
 /**
@@ -27,95 +44,109 @@ function requireAuth(req, res, next) {
 
   const token = authHeader.replace("Bearer ", "");
 
-  jwt.verify(
-    token,
-    getKey,
-    {
-      issuer: "https://comic-kangaroo-23.clerk.accounts.dev",
-      algorithms: ["RS256"],
-    },
-    (err, decoded) => {
-      if (err) {
-        console.error("JWT verification failed:", err.message);
+  const verifyWith = (issuer, jwksClient) =>
+    new Promise((resolve, reject) => {
+      jwt.verify(
+        token,
+        getKeyWith(jwksClient),
+        {
+          issuer,
+          algorithms: ["RS256"],
+        },
+        (err, decoded) => {
+          if (err) return reject(err);
+          resolve(decoded);
+        }
+      );
+    });
+
+  (async () => {
+    let decoded;
+
+    try {
+      // ✅ TRY PRODUCTION FIRST
+      decoded = await verifyWith(
+        "https://clerk.blackvant.com",
+        prodJwksClient
+      );
+    } catch (prodErr) {
+      try {
+        // 🔁 FALLBACK TO DEV
+        decoded = await verifyWith(
+          "https://comic-kangaroo-23.clerk.accounts.dev",
+          devJwksClient
+        );
+      } catch (devErr) {
+        console.error("JWT verification failed:", devErr.message);
         return res.status(401).json({ error: "Invalid token" });
       }
-      req.authClaims = decoded;
-
-      const clerkUserId =
-        decoded.sub ||
-        decoded.user_id ||
-        decoded.uid ||
-        decoded.id;
-      const email =
-        decoded.email ||
-        decoded.primary_email ||
-        decoded.email_addresses?.[0]?.email_address ||
-        null;
-
-            if (!clerkUserId) {
-              return res.status(401).json({ error: "Invalid token payload" });
-            }
-          
-            // ✅ ENSURE USER EXISTS IN DATABASE
-            (async () => {
-              try {
-                let user = await prisma.user.findUnique({
-                  where: { clerkId: clerkUserId }
-                });
-                
-                if (!user) {
-                  try {
-                    user = await prisma.user.create({
-                      data: {
-                        clerkId: clerkUserId,
-                        email,
-                      },
-                    });
-                  } catch (err) {
-                    // 🔐 Email already exists → attach clerkId to existing user
-                    if (err.code === "P2002") {
-                      user = await prisma.user.findUnique({
-                        where: { email },
-                      });
-                    
-                      if (!user) {
-                        throw err; // unexpected
-                      }
-                    
-                      // OPTIONAL: link clerkId if missing
-                      await prisma.user.update({
-                        where: { id: user.id },
-                        data: { clerkId: clerkUserId },
-                      });
-                    } else {
-                      throw err;
-                    }
-                  }
-                }
-
-              
-                req.userContext = {
-                  clerkUserId,
-                  userId: user.id,
-                  email
-                };
-                
-                // 🔒 NORMALIZED AUTH CONTEXT (REQUIRED)
-                req.auth = {
-                  userId: clerkUserId
-                };
-                
-                next();
-
-              
-              } catch (dbErr) {
-                console.error("Auth DB sync error:", dbErr);
-                return res.status(500).json({ error: "Authentication failed" });
-              }
-            })();
-
     }
-  );
+
+    // 🔒 EVERYTHING BELOW IS YOUR ORIGINAL LOGIC (UNCHANGED)
+    req.authClaims = decoded;
+
+    const clerkUserId =
+      decoded.sub ||
+      decoded.user_id ||
+      decoded.uid ||
+      decoded.id;
+    const email =
+      decoded.email ||
+      decoded.primary_email ||
+      decoded.email_addresses?.[0]?.email_address ||
+      null;
+
+    if (!clerkUserId) {
+      return res.status(401).json({ error: "Invalid token payload" });
+    }
+
+    try {
+      let user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId }
+      });
+
+      if (!user) {
+        try {
+          user = await prisma.user.create({
+            data: {
+              clerkId: clerkUserId,
+              email,
+            },
+          });
+        } catch (err) {
+          if (err.code === "P2002") {
+            user = await prisma.user.findUnique({
+              where: { email },
+            });
+
+            if (!user) throw err;
+
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { clerkId: clerkUserId },
+            });
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      req.userContext = {
+        clerkUserId,
+        userId: user.id,
+        email
+      };
+
+      req.auth = {
+        userId: clerkUserId
+      };
+
+      next();
+    } catch (dbErr) {
+      console.error("Auth DB sync error:", dbErr);
+      return res.status(500).json({ error: "Authentication failed" });
+    }
+  })();
 }
 
 
