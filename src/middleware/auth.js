@@ -4,9 +4,8 @@ const prisma = new PrismaClient();
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
-
-const prodJwksClient = jwksClient({
-  jwksUri: "https://clerk.blackvant.com/.well-known/jwks.json",
+const devJwksClient = jwksClient({
+  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
 });
 
 function getKeyWith(client) {
@@ -42,7 +41,7 @@ function requireAuth(req, res, next) {
         (err, decoded) => {
           if (err) return reject(err);
           resolve(decoded);
-        }
+        },
       );
     });
 
@@ -52,8 +51,8 @@ function requireAuth(req, res, next) {
     try {
       // ✅ TRY PRODUCTION FIRST
       decoded = await verifyWith(
-        "https://clerk.blackvant.com",
-        prodJwksClient
+        "https://comic-kangaroo-23.clerk.accounts.dev",
+        devJwksClient,
       );
     } catch (prodErr) {
       return res.status(401).json({ error: "Invalid token" });
@@ -63,10 +62,7 @@ function requireAuth(req, res, next) {
     req.authClaims = decoded;
 
     const clerkUserId =
-      decoded.sub ||
-      decoded.user_id ||
-      decoded.uid ||
-      decoded.id;
+      decoded.sub || decoded.user_id || decoded.uid || decoded.id;
     const email =
       decoded.email ||
       decoded.primary_email ||
@@ -79,7 +75,7 @@ function requireAuth(req, res, next) {
 
     try {
       let user = await prisma.user.findUnique({
-        where: { clerkId: clerkUserId }
+        where: { clerkId: clerkUserId },
       });
 
       if (!user) {
@@ -111,11 +107,11 @@ function requireAuth(req, res, next) {
       req.userContext = {
         clerkUserId,
         userId: user.id,
-        email
+        email,
       };
 
       req.auth = {
-        userId: clerkUserId
+        userId: clerkUserId,
       };
 
       next();
