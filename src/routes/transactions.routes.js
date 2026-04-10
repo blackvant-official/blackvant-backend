@@ -51,7 +51,10 @@ router.get("/me/transactions", requireAuth, async (req, res) => {
        2. DEPOSITS (PENDING)
        ====================== */
     const deposits = await prisma.deposit.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        status: { notIn: ["APPROVED", "approved"] },
+      },
       select: {
         id: true,
         amount: true,
@@ -72,7 +75,10 @@ router.get("/me/transactions", requireAuth, async (req, res) => {
        3. WITHDRAWALS (PENDING)
        ====================== */
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        status: { notIn: ["APPROVED", "approved"] },
+      },
       select: {
         id: true,
         amount: true,

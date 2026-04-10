@@ -92,7 +92,7 @@ router.get("/me/balance", requireAuth, async (req, res) => {
       balance: {
         totalCredits,
         totalDebits,
-        availableBalance: totalCredits - totalDebits,
+        availableBalance: Number(totalCredits) - Number(totalDebits),
       },
     });
   } catch (err) {

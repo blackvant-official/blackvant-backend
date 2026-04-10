@@ -1,10 +1,9 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../utils/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 router.use(requireAuth, requireAdmin);
 
 /**
@@ -22,7 +21,7 @@ router.get("/transactions", async (req, res) => {
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
-        include: {
+      include: {
           user: { select: { email: true } }
         }
       }),
@@ -35,9 +34,9 @@ router.get("/transactions", async (req, res) => {
         id: e.id,
         date: e.createdAt,
         user: e.user?.email || "System",
-        type: e.type,              // DEPOSIT / WITHDRAWAL / PROFIT
+        type: e.referenceType,
         amount: Number(e.amount),
-        direction: e.amount < 0 ? "Out" : "In",
+        direction: e.direction === "DEBIT" ? "Out" : "In",
         status: "completed"        // ledger entries are final
       })),
       pagination: {

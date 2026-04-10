@@ -1,5 +1,5 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../utils/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { generateOtp, hashOtp, getOtpExpiry } from "../../services/otp.service.js";
@@ -7,13 +7,12 @@ import { sendEmail } from "../../services/email.service.js";
 import bcrypt from "bcrypt";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 router.use(requireAuth, requireAdmin);
 
 // Verify Route
 router.post("/profit/otp/verify", async (req, res) => {
   try {
-    const adminUserId = req.auth?.userId;
+    const adminUserId = req.admin?.id;
     const { profitDistributionId, otp } = req.body;
 
     if (!adminUserId) {
@@ -73,7 +72,7 @@ router.post("/profit/otp/verify", async (req, res) => {
 // Request Route
 router.post("/profit/otp/request", async (req, res) => {
   try {
-    const adminUserId = req.auth?.userId;
+    const adminUserId = req.admin?.id;
     const adminEmail = req.userContext?.email;
     const { profitDistributionId } = req.body;
 

@@ -10,6 +10,9 @@ async function getKpis() {
   // Aggregate credits & debits per user
   const ledgerAgg = await prisma.ledger.groupBy({
     by: ["userId", "direction"],
+    where: {
+      bucket: "CAPITAL",
+    },
     _sum: { amount: true }
   });
 
@@ -87,6 +90,7 @@ async function getSeries(days) {
       amount: true,
       direction: true,
       referenceType: true,
+      bucket: true,
       createdAt: true
     },
     orderBy: { createdAt: "asc" }
@@ -124,7 +128,9 @@ async function getSeries(days) {
           ? Number(r.amount)
           : -Number(r.amount);
 
-      balances.set(r.userId, prev + delta);
+      if (r.bucket === "CAPITAL") {
+        balances.set(r.userId, prev + delta);
+      }
 
       if (r.direction === "DEBIT" && r.referenceType === "WITHDRAWAL") {
         dailyWithdrawals += Number(r.amount);

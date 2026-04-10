@@ -1,7 +1,6 @@
-import { logAudit } from "../../services/audit.service.js";
 import express from "express";
 import prisma from "../../utils/prisma.js";
-import { requireAuth,  } from "../../middleware/auth.js";
+import { requireAuth } from "../../middleware/auth.js";
 import { requireAdmin } from "../../middleware/requireAdmin.js";
 import { requireWritable } from "../../middleware/readOnly.js";
 import { getSystemSettings } from "../../services/systemSettings.service.js";
@@ -16,6 +15,7 @@ const normalizeAdminDepositStatus = (status) => {
 };
 
 const router = express.Router();
+router.use(requireAuth, requireAdmin);
 
 // GET /api/v1/admin/deposits
 
@@ -66,7 +66,6 @@ router.get("/deposits", async (req, res) => {
 // ============================================
 router.get(
   "/deposits/:id/proof-url",
-  requireAdmin,
   async (req, res) => {
     try {
       const depositId = req.params.id;
@@ -123,6 +122,7 @@ router.post(
   requireWritable,
   async (req, res) => {
   const depositId = req.params.id;
+  const adminUserId = req.admin.id;
 
   // 🔒 PLATFORM MAINTENANCE CHECK
   const systemSettings = await getSystemSettings();
@@ -145,7 +145,7 @@ router.post(
     }
 
     // 2️⃣ Must be pending
-    if (deposit.status !== "PENDING") {
+    if (String(deposit.status).toUpperCase() !== "PENDING") {
       return res.status(409).json({
         error: "Deposit already processed",
       });
@@ -165,28 +165,45 @@ router.post(
       });
     }
 
-    // 4️⃣ Atomic transaction (ledger + status)
-    await prisma.$transaction([
-      prisma.ledger.create({
+    // 4️⃣ Atomic transaction (status + ledger)
+    await prisma.$transaction(async (tx) => {
+      const statusUpdate = await tx.deposit.updateMany({
+        where: {
+          id: deposit.id,
+          status: { in: ["PENDING", "pending"] },
+        },
+        data: {
+          status: "APPROVED",
+          approvedAt: new Date(),
+          reviewedById: adminUserId,
+        },
+      });
+
+      if (statusUpdate.count !== 1) {
+        throw new Error("DEPOSIT_ALREADY_PROCESSED");
+      }
+
+      await tx.ledger.create({
         data: {
           userId: deposit.userId,
           amount: deposit.amount,
           direction: "CREDIT",
-          bucket: "CAPITAL",          // ✅ REQUIRED
+          bucket: "CAPITAL",
           referenceType: "DEPOSIT",
           referenceId: deposit.id,
         },
-      }),
+      });
 
-
-      prisma.deposit.update({
-        where: { id: deposit.id },
+      await tx.auditLog.create({
         data: {
-          status: "APPROVED",
-          approvedAt: new Date(),
+          action: "DEPOSIT_APPROVED",
+          actorId: adminUserId,
+          entityType: "DEPOSIT",
+          entityId: deposit.id,
+          meta: { amount: deposit.amount },
         },
-      }),
-    ]);
+      });
+    });
     // ================================
     // CAPITAL LOCK ACTIVATION (SYSTEM-WIDE)
     // ================================
@@ -210,6 +227,12 @@ router.post(
       message: "Deposit approved and ledger credited",
     });
   } catch (error) {
+    if (error.message === "DEPOSIT_ALREADY_PROCESSED") {
+      return res.status(409).json({
+        error: "Deposit already processed",
+      });
+    }
+
     console.error("Deposit approval error:", error);
     return res.status(500).json({
       error: "Internal server error",
@@ -226,21 +249,10 @@ router.post(
   requireWritable,
   async (req, res) => {
     const depositId = req.params.id;
-    const clerkUserId = req.auth.userId;
+    const adminUserId = req.admin.id;
 
     try {
       await prisma.$transaction(async (tx) => {
-
-        // 🔹 Resolve internal admin user
-        const adminUser = await tx.user.findUnique({
-          where: { clerkId: clerkUserId }
-        });
-
-
-        if (!adminUser) {
-          throw new Error("ADMIN_USER_NOT_FOUND");
-        }
-
         // 1️⃣ Fetch deposit
         const deposit = await tx.deposit.findUnique({
           where: { id: depositId }
@@ -250,21 +262,24 @@ router.post(
           throw new Error("DEPOSIT_NOT_FOUND");
         }
 
-        if (deposit.status !== "PENDING") {
+        if (String(deposit.status).toUpperCase() !== "PENDING") {
           throw new Error("DEPOSIT_ALREADY_PROCESSED");
         }
 
         // 2️⃣ Update status
         await tx.deposit.update({
           where: { id: depositId },
-          data: { status: "REJECTED" }
+          data: {
+            status: "REJECTED",
+            reviewedById: adminUserId,
+          }
         });
 
         // 3️⃣ Audit log (NOW VALID FK)
         await tx.auditLog.create({
           data: {
             action: "DEPOSIT_REJECTED",
-            actorId: adminUser.id, // ✅ INTERNAL ID
+            actorId: adminUserId,
             entityType: "DEPOSIT",
             entityId: deposit.id,
             meta: {

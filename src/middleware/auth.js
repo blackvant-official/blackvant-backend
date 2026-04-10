@@ -1,11 +1,14 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-
+import prisma from "../utils/prisma.js";
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
 
+const clerkIssuer =
+  process.env.CLERK_ISSUER || "https://comic-kangaroo-23.clerk.accounts.dev";
+const clerkJwksUri =
+  process.env.CLERK_JWKS_URI || `${clerkIssuer}/.well-known/jwks.json`;
+
 const devJwksClient = jwksClient({
-  jwksUri: "https://comic-kangaroo-23.clerk.accounts.dev/.well-known/jwks.json",
+  jwksUri: clerkJwksUri,
 });
 
 function getKeyWith(client) {
@@ -49,11 +52,7 @@ function requireAuth(req, res, next) {
     let decoded;
 
     try {
-      // ✅ TRY PRODUCTION FIRST
-      decoded = await verifyWith(
-        "https://comic-kangaroo-23.clerk.accounts.dev",
-        devJwksClient,
-      );
+      decoded = await verifyWith(clerkIssuer, devJwksClient);
     } catch (prodErr) {
       return res.status(401).json({ error: "Invalid token" });
     }

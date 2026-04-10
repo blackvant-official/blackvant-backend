@@ -20,7 +20,7 @@ model User {
   clerkId           String   @unique
   email             String   @unique
   fullName          String?
-  role              String   @default("client") // client | admin | superadmin
+  role              String   @default("client") // client | admin | super_admin
   ledgerEntries     Ledger[]
 
   referralCode      String?  @unique

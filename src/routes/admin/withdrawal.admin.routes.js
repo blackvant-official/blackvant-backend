@@ -140,7 +140,7 @@ router.post(
         }
 
         // 2) Must be pending (normalize to uppercase)
-        if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending") {
+        if (String(withdrawal.status).toUpperCase() !== "PENDING") {
           throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
         }
 
@@ -213,9 +213,6 @@ router.post(
 
 
         // 6) Update withdrawal status
-        console.log("ADMIN INTERNAL ID:", adminUser.id);
-        console.log("ADMIN CLERK ID:", req.auth.userId);
-
         await tx.withdrawal.update({
           where: { id: withdrawal.id },
           data: {
@@ -302,14 +299,11 @@ router.post(
         }
 
         // 2️⃣ Must be pending
-        if (withdrawal.status !== "PENDING" && withdrawal.status !== "pending") {
+        if (String(withdrawal.status).toUpperCase() !== "PENDING") {
           throw new Error("WITHDRAWAL_ALREADY_PROCESSED");
         }
 
         // 3️⃣ Update status → REJECTED
-        console.log("ADMIN INTERNAL ID:", adminUser.id);
-        console.log("ADMIN CLERK ID:", req.auth.userId);
-
         await tx.withdrawal.update({
           where: { id },
           data: {

@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prisma.js";
 
 /**
  * Get the single system settings row.
@@ -50,4 +48,3 @@ export async function isWithdrawFrequencyEnabled() {
   const settings = await prisma.systemSetting.findFirst();
   return settings?.withdrawFrequencyEnabled !== false;
 }
-

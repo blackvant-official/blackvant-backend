@@ -3,7 +3,10 @@ import prisma from "../utils/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { Prisma } from "@prisma/client";
 import { requireWritable } from "../middleware/readOnly.js";
-import { getMinDepositAmount } from "../services/systemSettings.service.js";
+import {
+  getMinDepositAmount,
+  getSystemSettings,
+} from "../services/systemSettings.service.js";
 
 // ================================
 // STATUS NORMALIZATION (DEPOSITS)
@@ -64,6 +67,22 @@ router.post(
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    const systemSettings = await getSystemSettings();
+
+    if (systemSettings?.platformMaintenanceMode === true) {
+      return res.status(503).json({
+        error: "PLATFORM_MAINTENANCE",
+        message: "Deposits are disabled during maintenance mode.",
+      });
+    }
+
+    if (systemSettings?.depositsEnabled === false) {
+      return res.status(403).json({
+        error: "DEPOSITS_DISABLED",
+        message: "Deposits are currently disabled.",
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId },
     });
@@ -80,8 +99,6 @@ router.post(
       });
     }
 
-
-    console.log("DEPOSIT BODY:", req.body);
     const deposit = await prisma.deposit.create({
       data: {
         userId: user.id,

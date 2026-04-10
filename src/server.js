@@ -1,12 +1,11 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { PrismaClient } from "@prisma/client";
+import prisma from "./utils/prisma.js";
 
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 
 /* --------------------------------------------------
    CORS CONFIG (Express v5 compatible)
@@ -106,7 +105,7 @@ app.use((err, req, res, next) => {
   console.error("🔥 GLOBAL ERROR:", err);
   res.status(500).json({
     error: "Internal Server Error",
-    message: err.message,
+    ...(process.env.NODE_ENV !== "production" && { message: err.message }),
   });
 });
 

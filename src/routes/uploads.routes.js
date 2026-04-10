@@ -9,7 +9,21 @@ import { requireWritable } from "../middleware/readOnly.js";
 const router = express.Router();
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "application/pdf"];
+const ALLOWED_PURPOSE = ["DEPOSIT_PROOF", "SUPPORT_MESSAGE"];
 const MAX_SIZE = 5 * 1024 * 1024;
+
+function isValidUploadMetadata({ clerkUserId, storageKey, purpose, mimeType, fileSize, originalName }) {
+  if (!clerkUserId || typeof storageKey !== "string") return false;
+  if (!ALLOWED_PURPOSE.includes(purpose)) return false;
+  if (!ALLOWED_MIME.includes(mimeType)) return false;
+  if (!Number.isFinite(Number(fileSize)) || Number(fileSize) <= 0 || Number(fileSize) > MAX_SIZE) {
+    return false;
+  }
+  if (!originalName || typeof originalName !== "string") return false;
+
+  const expectedPrefix = `users/${clerkUserId}/${purpose}/`;
+  return storageKey.startsWith(expectedPrefix) && !storageKey.includes("..");
+}
 
 // Request signed upload URL
 router.post(
@@ -17,11 +31,11 @@ router.post(
   requireAuth,
   requireWritable,
   async (req, res) => {
-  console.log("UPLOAD REQUEST HIT", req.body);
   const { clerkUserId } = req.userContext; // Clerk middleware
   const { purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
   if (!clerkUserId) return res.sendStatus(401);
+  if (!ALLOWED_PURPOSE.includes(purpose)) return res.status(400).json({ error: "Invalid purpose" });
   if (!ALLOWED_MIME.includes(mimeType)) return res.status(400).json({ error: "Invalid mime" });
   if (fileSize > MAX_SIZE) return res.status(400).json({ error: "File too large" });
 
@@ -43,11 +57,13 @@ router.post(
   requireAuth,
   requireWritable,
   async (req, res) => {
-  console.log("UPLOAD CONFIRM HIT", req.body);
   const { clerkUserId } = req.userContext;
   const { storageKey, purpose, mimeType, fileSize, originalName, depositId, ticketId } = req.body;
 
   if (!clerkUserId) return res.sendStatus(401);
+  if (!isValidUploadMetadata({ clerkUserId, storageKey, purpose, mimeType, fileSize, originalName })) {
+    return res.status(400).json({ error: "Invalid upload metadata" });
+  }
 
   const exists = await objectExists(storageKey);
   if (!exists) return res.status(400).json({ error: "Object not found" });
@@ -71,7 +87,6 @@ router.post(
 
 // Signed download
 router.get("/:id/download", async (req, res) => {
-  console.log("UPLOAD DOWNLOAD HIT", req.params);
   const { clerkUserId } = req.userContext;
   const { id } = req.params;
 

@@ -158,13 +158,49 @@ export async function getDashboardChart(clerkUserId, days = 30) {
   const opening = await prisma.ledger.aggregate({
     where: {
       userId,
+      direction: "CREDIT",
       createdAt: { lt: start }
     },
     _sum: { amount: true }
   });
 
-  let runningBalance = Number(opening._sum.amount || 0);
+  const openingDebits = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "DEBIT",
+      createdAt: { lt: start }
+    },
+    _sum: { amount: true }
+  });
+
+  let runningBalance =
+    Number(opening._sum.amount || 0) -
+    Number(openingDebits._sum.amount || 0);
+
+  const openingProfitCredits = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "CREDIT",
+      referenceType: "PROFIT",
+      createdAt: { lt: start }
+    },
+    _sum: { amount: true }
+  });
+
+  const openingProfitDebits = await prisma.ledger.aggregate({
+    where: {
+      userId,
+      direction: "DEBIT",
+      bucket: "PROFIT",
+      createdAt: { lt: start }
+    },
+    _sum: { amount: true }
+  });
+
   let cumulativeProfit = 0;
+  cumulativeProfit =
+    Number(openingProfitCredits._sum.amount || 0) -
+    Number(openingProfitDebits._sum.amount || 0);
 
   // 2️⃣ Ledger entries inside range
   const entries = await prisma.ledger.findMany({
@@ -212,8 +248,8 @@ export async function getDashboardChart(clerkUserId, days = 30) {
       runningBalance += delta;
 
       if (e.referenceType === "PROFIT") {
-        cumulativeProfit += Number(e.amount);
-        dailyProfit += Number(e.amount);
+        cumulativeProfit += delta;
+        dailyProfit += delta;
       }
     }
 

@@ -6,6 +6,7 @@ import { requireWritable } from "../middleware/readOnly.js";
 import { resolveCapitalLockState } from "../services/capitalLock.service.js";
 import {
   getMinWithdrawAmount,
+  getSystemSettings,
   getWithdrawFrequencyDays,
   isWithdrawFrequencyEnabled,
 } from "../services/systemSettings.service.js";
@@ -72,6 +73,21 @@ router.post(
   async (req, res) => {
     try {
       const { clerkUserId } = req.userContext;
+      const systemSettings = await getSystemSettings();
+
+      if (systemSettings?.platformMaintenanceMode === true) {
+        return res.status(503).json({
+          error: "PLATFORM_MAINTENANCE",
+          message: "Withdrawals are disabled during maintenance mode.",
+        });
+      }
+
+      if (systemSettings?.withdrawalsEnabled === false) {
+        return res.status(403).json({
+          error: "WITHDRAWALS_DISABLED",
+          message: "Withdrawals are currently disabled.",
+        });
+      }
 
       const user = await prisma.user.findUnique({
         where: { clerkId: clerkUserId },
@@ -200,6 +216,26 @@ router.post(
 
     if (!amount || !currency || !method || !targetAddress) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    if (source !== "profit" && source !== "capital") {
+      return res.status(400).json({ error: "INVALID_WITHDRAW_SOURCE" });
+    }
+
+    const systemSettings = await getSystemSettings();
+
+    if (systemSettings?.platformMaintenanceMode === true) {
+      return res.status(503).json({
+        error: "PLATFORM_MAINTENANCE",
+        message: "Withdrawals are disabled during maintenance mode.",
+      });
+    }
+
+    if (systemSettings?.withdrawalsEnabled === false) {
+      return res.status(403).json({
+        error: "WITHDRAWALS_DISABLED",
+        message: "Withdrawals are currently disabled.",
+      });
     }
 
     const user = await prisma.user.findUnique({

@@ -9,8 +9,9 @@ import prisma from "../utils/prisma.js";
  * 3. User has an admin-capable role
  *
  * Accepted roles:
- * - "ADMIN"
+ * - "admin"
  * - "super_admin"
+ * - "superadmin"
  *
  * Attaches:
  *   req.admin = { id, role }
@@ -40,10 +41,11 @@ export async function requireAdmin(req, res, next) {
       });
     }
 
-    // 4️⃣ Validate role (case-sensitive, explicit)
-    const ALLOWED_ROLES = ["ADMIN", "super_admin"];
+    // 4️⃣ Validate role
+    const normalizedRole = String(admin.role || "").toLowerCase();
+    const ALLOWED_ROLES = ["admin", "super_admin", "superadmin"];
 
-    if (!ALLOWED_ROLES.includes(admin.role)) {
+    if (!ALLOWED_ROLES.includes(normalizedRole)) {
       return res.status(403).json({
         error: "Admin access required",
       });
@@ -52,7 +54,7 @@ export async function requireAdmin(req, res, next) {
     // 5️⃣ Attach admin context (used by profit system)
     req.admin = {
       id: admin.id,
-      role: admin.role,
+      role: normalizedRole,
     };
 
     return next();

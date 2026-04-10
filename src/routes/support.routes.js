@@ -1,15 +1,13 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prisma.js";
 import requireAuth from "../middleware/auth.js";
 import { requireWritable } from "../middleware/readOnly.js";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Generate readable ticket ID
 function generateTicketId() {
-  return "TK-" + Math.random().toString(36).substring(2, 8).toUpperCase()
- ?? Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 }
 
 /**
@@ -70,8 +68,6 @@ router.post(
  */
 router.get("/support/tickets", requireAuth, async (req, res) => {
   try {
-    console.log("SUPPORT TICKETS CONTEXT:", req.userContext);
-
     const { userId } = req.userContext;
 
     if (!userId) {
@@ -79,14 +75,10 @@ router.get("/support/tickets", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "User context missing" });
     }
 
-    console.log("QUERYING SUPPORT TICKETS FOR USER:", userId);
-
     const tickets = await prisma.supportTicket.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" }
     });
-
-    console.log("SUPPORT TICKETS FOUND:", tickets.length);
 
     res.json(tickets);
 

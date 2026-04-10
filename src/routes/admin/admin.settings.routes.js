@@ -9,6 +9,35 @@ import prisma from "../../utils/prisma.js";
 
 const router = express.Router();
 
+function publicSettingsPayload(settings) {
+  return {
+    minDepositAmount: settings?.minDepositAmount ?? 100,
+    minWithdrawAmount: settings?.minWithdrawAmount ?? 10,
+    withdrawFrequencyDays: settings?.withdrawFrequencyDays ?? 7,
+    withdrawFrequencyEnabled: settings?.withdrawFrequencyEnabled !== false,
+    depositsEnabled: settings?.depositsEnabled !== false,
+    withdrawalsEnabled: settings?.withdrawalsEnabled !== false,
+    platformMaintenanceMode: !!settings?.platformMaintenanceMode,
+    capitalLockEnabled: !!settings?.capitalLockEnabled,
+    capitalLockDays: settings?.capitalLockDays ?? 0,
+    capitalLockStartAt: settings?.capitalLockStartAt ?? null,
+  };
+}
+
+/**
+ * GET /admin/settings/system/public
+ * Safe subset for authenticated user-facing pages.
+ */
+router.get("/system/public", requireAuth, async (req, res) => {
+  try {
+    const settings = await getSystemSettings();
+    res.json(publicSettingsPayload(settings));
+  } catch (err) {
+    console.error("GET public system settings failed:", err);
+    res.status(500).json({ error: "FAILED_TO_FETCH_SETTINGS" });
+  }
+});
+
 /**
  * GET /admin/settings/system
  * Fetch global system settings.
@@ -137,11 +166,12 @@ router.patch("/system", requireAuth, requireAdmin, async (req, res) => {
       await prisma.systemSetting.updateMany({
         data: { withdrawFrequencyDays },
       });
+    }
+
     if (typeof withdrawFrequencyEnabled === "boolean") {
       await prisma.systemSetting.updateMany({
         data: { withdrawFrequencyEnabled },
       });
-    }
     }
 
     // ================================
