@@ -4,6 +4,7 @@ import prisma from "../utils/prisma.js"; // adjust import to your setup
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth.js";
 import { requireWritable } from "../middleware/readOnly.js";
+import { getSystemSettings } from "../services/systemSettings.service.js";
 
 
 const router = express.Router();
@@ -25,6 +26,30 @@ function isValidUploadMetadata({ clerkUserId, storageKey, purpose, mimeType, fil
   return storageKey.startsWith(expectedPrefix) && !storageKey.includes("..");
 }
 
+async function enforcePurposeAvailability(purpose, res) {
+  if (purpose !== "DEPOSIT_PROOF") return true;
+
+  const settings = await getSystemSettings();
+
+  if (settings?.platformMaintenanceMode === true) {
+    res.status(503).json({
+      error: "PLATFORM_MAINTENANCE",
+      message: "Deposit proof uploads are disabled during maintenance mode.",
+    });
+    return false;
+  }
+
+  if (settings?.depositsEnabled === false) {
+    res.status(403).json({
+      error: "DEPOSITS_DISABLED",
+      message: "Deposit proof uploads are currently disabled.",
+    });
+    return false;
+  }
+
+  return true;
+}
+
 // Request signed upload URL
 router.post(
   "/request",
@@ -36,6 +61,7 @@ router.post(
 
   if (!clerkUserId) return res.sendStatus(401);
   if (!ALLOWED_PURPOSE.includes(purpose)) return res.status(400).json({ error: "Invalid purpose" });
+  if (!(await enforcePurposeAvailability(purpose, res))) return;
   if (!ALLOWED_MIME.includes(mimeType)) return res.status(400).json({ error: "Invalid mime" });
   if (fileSize > MAX_SIZE) return res.status(400).json({ error: "File too large" });
 
@@ -64,6 +90,7 @@ router.post(
   if (!isValidUploadMetadata({ clerkUserId, storageKey, purpose, mimeType, fileSize, originalName })) {
     return res.status(400).json({ error: "Invalid upload metadata" });
   }
+  if (!(await enforcePurposeAvailability(purpose, res))) return;
 
   const exists = await objectExists(storageKey);
   if (!exists) return res.status(400).json({ error: "Object not found" });

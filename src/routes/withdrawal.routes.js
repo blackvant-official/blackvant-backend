@@ -153,6 +153,21 @@ router.post(
     try {
       const { clerkUserId } = req.userContext;
       const { otp } = req.body;
+      const systemSettings = await getSystemSettings();
+
+      if (systemSettings?.platformMaintenanceMode === true) {
+        return res.status(503).json({
+          error: "PLATFORM_MAINTENANCE",
+          message: "Withdrawals are disabled during maintenance mode.",
+        });
+      }
+
+      if (systemSettings?.withdrawalsEnabled === false) {
+        return res.status(403).json({
+          error: "WITHDRAWALS_DISABLED",
+          message: "Withdrawals are currently disabled.",
+        });
+      }
 
       if (!otp) {
         return res.status(400).json({ error: "OTP_REQUIRED" });
@@ -322,7 +337,7 @@ router.post(
       const withdrawalInPeriod = await prisma.withdrawal.findFirst({
         where: {
           userId: user.id,
-          status: "APPROVED",
+          status: { in: ["APPROVED", "approved"] },
           approvedAt: { gte: periodStart }
         }
       });
